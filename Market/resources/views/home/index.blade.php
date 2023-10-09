@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('titulo','Panel administrativo')
+@section('title','Panel administrativo')
 
-@section('contenido')
+@section('content')
 
     <div class="row">
         <!-- Earnings (Monthly) Card Example -->

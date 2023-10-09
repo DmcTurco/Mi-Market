@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,9 +16,16 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/admin', function () {
-    return view('layouts.admin');
+Route::get('/', function () {
+    return view('');
 });
+
+
+Route::get('/vista',[HomeController::class,'index'])->name('home');
+
+Route::resource('/products', ProductController::class);
+
+
 
 Route::get('/dashboard', function () {
     return view('dashboard');
