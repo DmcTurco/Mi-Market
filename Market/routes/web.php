@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -21,13 +22,14 @@ Route::get('/', function () {
 });
 
 
-Route::get('/vista',[HomeController::class,'index'])->name('home');
+Route::get('/dashboard',[HomeController::class,'index'])->name('home');
 
 Route::resource('/products', ProductController::class);
+Route::resource('/category', CategoryController::class);
 
 
 
-Route::get('/dashboard', function () {
+Route::get('/panel', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 

@@ -37,8 +37,8 @@
                 <div id="collapseOne" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">operaciones:</h6>
-                        <a class="collapse-item" href="buttons.html">Crear Venta</a>
-                        <a class="collapse-item" href="cards.html">Cancelar Venta</a>
+                        <a class="collapse-item" href="#">Crear Venta</a>
+                        <a class="collapse-item" href="#">Cancelar Venta</a>
                     </div>
                 </div>
             </li>
@@ -85,9 +85,9 @@
                 <div id="collapseThree" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">operaciones:</h6>
-                        <a class="collapse-item" href="buttons.html">Usuarios</a>
-                        <a class="collapse-item" href="cards.html">Roles</a>
-                        <a class="collapse-item" href="cards.html">Permisos</a>
+                        <a class="collapse-item" href="#">Usuarios</a>
+                        <a class="collapse-item" href="#">Roles</a>
+                        <a class="collapse-item" href="#">Permisos</a>
                     </div>
                 </div>
             </li>
@@ -102,11 +102,11 @@
                 <div id="collapseUtilities" class="collapse" aria-labelledby="headingUtilities"
                     data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Custom Utilities:</h6>
-                        <a class="collapse-item" href="utilities-color.html">Colors</a>
-                        <a class="collapse-item" href="utilities-border.html">Borders</a>
-                        <a class="collapse-item" href="utilities-animation.html">Animations</a>
-                        <a class="collapse-item" href="utilities-other.html">Other</a>
+                        <h6 class="collapse-header">operaciones:</h6>
+                        <a class="collapse-item" href="{{ route('category.index') }}">Categoria</a>
+                        <a class="collapse-item" href="#">Borders</a>
+                        <a class="collapse-item" href="#">Animations</a>
+                        <a class="collapse-item" href="#">Other</a>
                     </div>
                 </div>
             </li>
