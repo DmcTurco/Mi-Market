@@ -146,7 +146,7 @@
     <script src="{{ asset('libs/sbadmin/js/sb-admin-2.min.js') }}"></script>
 
     @stack('scripts')
-    <script src="{{ assedt('js/main.js') }}"></script>
+    <script src="{{ asset('js/main.js') }}"></script>
 
 
 </body>
