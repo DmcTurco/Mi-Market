@@ -4,18 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\CategoryRequest;
+use Illuminate\Http\Request;
 use App\Http\Requests\UpdateCategoryRequest;
 
+
 class CategoryController extends Controller
+
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $category=Category::all();
-        return view('category.index',compact('category'));
+        $category = Category::all();
+        return view('category.index', compact('category'));
     }
 
     /**
@@ -29,10 +32,17 @@ class CategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreCategoryRequest $request)
+    public function store(CategoryRequest $request)
     {
-        //
+
+        $status = 1;
+        $request->merge(['state' => $status]);
+        Category::create($request->all());
+
+        alert()->success('Categoría ' . $request->name . '', 'guardada correctamente');
+        return redirect()->route('category.index');
     }
+
 
     /**
      * Display the specified resource.
