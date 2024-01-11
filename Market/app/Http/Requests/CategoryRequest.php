@@ -21,10 +21,20 @@ class CategoryRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'name' => ['required', 'string', 'unique:categories,name', 'max:255'],
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
         ];
+
+        // Verifica si estás editando un registro existente
+        if ($this->isMethod('PUT')) {
+            $rules['name'][] = 'unique:categories,name,' . $this->category->id;
+        } else {
+            $rules['name'][] = 'unique:categories,name';
+        }
+
+        return $rules;
     }
+
 
     public function withValidator($validator)
     {

@@ -39,7 +39,7 @@ class CategoryController extends Controller
         $request->merge(['state' => $status]);
         Category::create($request->all());
 
-        alert()->success('Categoría ' . $request->name . '', 'guardada correctamente');
+        alert()->success('La Categoría ' . $request->name . '', 'se ha guardado correctamente');
         return redirect()->route('category.index');
     }
 
@@ -63,9 +63,12 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateCategoryRequest $request, Category $category)
+    public function update(CategoryRequest $request, Category $category)
     {
-        //
+        $category->fill($request->all());
+        $category->save();
+        alert()->success('La Categoría ' . $request->name . '', 'se ha actualizado correctamente');
+        return redirect()->route('category.index');
     }
 
     /**

@@ -15,7 +15,7 @@
 
                         <div class="col-lg-12 form-group">
                             <div>
-                                <label for="name" class="form-fields">Nombre de la Categoria</label>
+                                <label for="name" class="form-fields">Nombre</label>
                                 <label class="mandatory-field">*</label>
                                 <input type="text"
                                     class="form-control {{ $errors->has('name') ? 'is-invalid' : '' }}" name="name"

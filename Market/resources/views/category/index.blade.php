@@ -16,14 +16,14 @@
 
     <div class="card">
         <div class="card-body">
-            <table id="dt-category" class="table table-striped table-bordered text-center">
+            <table id="dt-category" class="table table-striped table-bordered text-center dts">
 
-                <head>
+                <thead>
                     <th>id</th>
                     <th>Nombre</th>
                     <th>Estado</th>
                     <th>Acciones</th>
-                </head>
+                </thead>
                 <tbody>
                     @if ($category->count() > 0)
                         @foreach ($category as $item)
@@ -32,8 +32,9 @@
                                 <td>{{ $item->name }}</td>
                                 <td>{{ $item->state }}</td>
                                 <td>
-                                    <a href="" class="edit-form-data" data-toggle="modal" data-target="#editModal"><i
-                                            class="far fa-edit"></i></a>
+                                    <a href="" class="edit-form-data" data-toggle="modal" data-target="#editModal"
+                                        onclick="editCategory({{ $item }})">
+                                        <i class="far fa-edit"></i></a>
                                     <a href="" class="delete-form-data" data-toggle="modal"
                                         data-target="#deleteModal"><i class="far fa-trash-alt"></i></a>
                                 </td>
@@ -41,7 +42,7 @@
                         @endforeach
                     @else
                         <tr>
-                            <td colspan="9">No se ha encontrado Categorias registradas</td>
+                            <td colspan="4">No se ha encontrado Categorias registradas</td>
                         </tr>
                     @endif
 
@@ -59,6 +60,18 @@
 @push('scripts')
     <script src="{{ asset('/libs/datatables/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('/libs/datatables/dataTables.bootstrap4.min.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+
+    <script>
+        function editCategory(category) {
+
+            $("#editProductFrm").attr('action', `/category/${category.id}`);
+            $("#editProductFrm #name").val(category.name);
+
+        }
+    </script>
+
+
     @if (!$errors->isEmpty())
         @if ($errors->has('post'))
             <script>
@@ -74,4 +87,6 @@
             </script>
         @endif
     @endif
+
+
 @endpush
