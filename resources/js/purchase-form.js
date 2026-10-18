@@ -37,6 +37,10 @@ export default (config) => ({
         return 'S/ ' + moneyFormat.format(Number(value) || 0);
     },
 
+    toNumber(value) {
+        return toNumber(value);
+    },
+
     plural(unit) {
         return { Unidad: 'unidades', Kilo: 'kilos', Litro: 'litros', Paquete: 'paquetes', Caja: 'cajas' }[unit] ?? unit.toLowerCase();
     },
@@ -91,6 +95,25 @@ export default (config) => ({
     /** "= 36 unidades" para que quede claro cuánto sube el stock */
     baseUnits(item) {
         return toNumber(item.quantity) * this.unitsOf(item);
+    },
+
+    /** Por cajas: cuánto sale cada unidad con el costo escrito */
+    costPerUnit(item) {
+        const cost = toNumber(item.unit_cost);
+        return cost > 0 ? cost / this.unitsOf(item) : null;
+    },
+
+    /**
+     * Error típico: elegir "cajas" y escribir el costo de UNA botella. Si la caja costaría menos
+     * que el precio de venta de una sola unidad, casi seguro es eso.
+     */
+    looksLikeUnitCost(item) {
+        const cost = toNumber(item.unit_cost);
+        return this.unitsOf(item) > 1 && cost > 0 && item.price > 0 && cost <= item.price;
+    },
+
+    presentationName(item) {
+        return item.presentations.find((p) => p.id === item.presentation_id)?.name.toLowerCase() ?? '';
     },
 
     remove(item) {

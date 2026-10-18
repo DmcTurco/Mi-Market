@@ -11,19 +11,35 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Purchase extends Model
 {
+    const ACTIVE = 'active';
+    const VOIDED = 'voided';
+
     protected $fillable = [
         'company_id',
         'employee_id',
         'cash_movement_id',
         'supplier',
         'total',
+        'status',
+        'voided_at',
+        'void_reason',
+    ];
+
+    protected $attributes = [
+        'status' => self::ACTIVE,
     ];
 
     protected function casts(): array
     {
         return [
-            'total' => 'decimal:2',
+            'total'     => 'decimal:2',
+            'voided_at' => 'datetime',
         ];
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->status === self::VOIDED;
     }
 
     public function items(): HasMany

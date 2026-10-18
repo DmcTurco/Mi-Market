@@ -40,6 +40,19 @@ class PurchaseController extends Controller
 
     public function show(Purchase $purchase)
     {
-        return $this->showPurchase($purchase, 'company.pages.purchases.show');
+        return $this->showPurchase($purchase, 'company.pages.purchases.show', [
+            'voidUrl' => route('company.purchases.void', $purchase),
+        ]);
+    }
+
+    /** Anular un ingreso registrado por error */
+    public function void(Request $request, Purchase $purchase, PurchaseService $service)
+    {
+        $this->ensureOwned($purchase);
+
+        $service->void($purchase, $this->validateVoid($request));
+
+        return redirect()->route('company.purchases.show', $purchase)
+            ->with('success', 'Ingreso anulado. El stock volvió a como estaba; ya puedes registrarlo bien.');
     }
 }

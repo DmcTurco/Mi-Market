@@ -20,7 +20,7 @@ class TaxCalculator
     const INAFECTO  = '30';
 
     /**
-     * @param  array<int, array{price: float|string, quantity: float|string, affectation: string}>  $items
+     * @param  array<int, array{price: float|string, quantity: float|string, affectation: string, total?: float}>  $items
      * @return array{lines: array<int, array{total: float, base: float, igv: float}>,
      *               taxable: float, exonerated: float, unaffected: float, igv: float, total: float}
      */
@@ -30,7 +30,10 @@ class TaxCalculator
         $taxable = $exonerated = $unaffected = $igv = $total = 0.0;
 
         foreach ($items as $index => $item) {
-            $lineTotal = round((float) $item['price'] * (float) $item['quantity'], 2);
+            // Con descuento, la línea ya trae su total final; si no, es precio × cantidad
+            $lineTotal = isset($item['total'])
+                ? round((float) $item['total'], 2)
+                : round((float) $item['price'] * (float) $item['quantity'], 2);
 
             if ($item['affectation'] === self::GRAVADO) {
                 $base    = round($lineTotal / (1 + self::IGV_RATE), 2);

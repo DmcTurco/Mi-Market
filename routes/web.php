@@ -45,6 +45,7 @@ Route::prefix(MyApp::COMPANY_SUBDIR)->middleware('auth:company')->name('company.
     Route::get('purchases/create', [Company\PurchaseController::class, 'create'])->name('purchases.create');
     Route::post('purchases', [Company\PurchaseController::class, 'store'])->name('purchases.store');
     Route::get('purchases/{purchase}', [Company\PurchaseController::class, 'show'])->name('purchases.show');
+    Route::post('purchases/{purchase}/void', [Company\PurchaseController::class, 'void'])->name('purchases.void');
 
     // Ventas y cajas
     Route::get('sales', [Company\SaleController::class, 'index'])->name('sales.index');
@@ -61,6 +62,10 @@ Route::prefix(MyApp::COMPANY_SUBDIR)->middleware('auth:company')->name('company.
 
     // Personal
     Route::resource('employees', Company\EmployeeController::class)->except(['show']);
+
+    // Configuración: descuentos y redondeo
+    Route::get('settings', [Company\SettingsController::class, 'edit'])->name('settings.edit');
+    Route::put('settings', [Company\SettingsController::class, 'update'])->name('settings.update');
 });
 
 Route::prefix(MyApp::EMPLOYEE_SUBDIR)->middleware('auth:employee')->name('employee.')->group(function () {
@@ -81,6 +86,7 @@ Route::prefix(MyApp::EMPLOYEE_SUBDIR)->middleware('auth:employee')->name('employ
     Route::get('purchases/create', [Employee\PurchaseController::class, 'create'])->name('purchases.create');
     Route::post('purchases', [Employee\PurchaseController::class, 'store'])->name('purchases.store');
     Route::get('purchases/{purchase}', [Employee\PurchaseController::class, 'show'])->name('purchases.show');
+    Route::post('purchases/{purchase}/void', [Employee\PurchaseController::class, 'void'])->name('purchases.void');
 
     // Ticket de una venta (también de cajas ya cerradas)
     Route::get('sales/{sale}/ticket', [TicketController::class, 'employee'])->name('sales.ticket');

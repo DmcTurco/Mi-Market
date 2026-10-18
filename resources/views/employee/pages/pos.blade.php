@@ -8,6 +8,7 @@
         'products'   => $products,
         'categories' => $categories,
         'vouchers'   => $vouchers,
+        'settings'   => $settings,
         'methods'    => \App\Models\Sale::PAYMENT_METHODS,
         'urls'       => [
             'store'   => route('employee.sales.store'),
@@ -114,7 +115,13 @@
                                 <span class="text-sm text-slate-500" x-text="line.unit.toLowerCase()"></span>
                             </label>
                         </template>
-                        <span class="text-xs text-slate-400" x-text="'× ' + money(line.price)"></span>
+                        {{-- Tocar el precio para rebajarlo --}}
+                        <button type="button" @click="openPrice(line)" :title="settings.allowDiscounts ? 'Rebajar precio' : ''"
+                                :class="line.price < line.listPrice ? 'bg-amber-50 text-amber-700' : 'text-slate-400 hover:bg-slate-100'"
+                                class="text-xs px-1.5 py-1 rounded">
+                            × <span x-show="line.price < line.listPrice" class="line-through mr-0.5" x-text="money(line.listPrice)"></span><span x-text="money(line.price)"></span>
+                            <i class="fas fa-pen text-[10px] ml-0.5" x-show="settings.allowDiscounts"></i>
+                        </button>
                         <span class="ml-auto font-bold text-slate-800" x-text="money(lineTotal(line))"></span>
                     </div>
                 </div>
@@ -127,6 +134,23 @@
         </div>
 
         <div class="p-4 border-t border-slate-200 shrink-0 bg-slate-50">
+            {{-- Descuento a toda la venta --}}
+            <div class="flex items-center justify-between text-sm mb-2" x-show="cart.length && settings.allowDiscounts">
+                <button type="button" @click="openDiscount()" class="text-brand-700 hover:underline font-medium">
+                    <i class="fas fa-tag"></i> <span x-text="discount > 0 ? 'Cambiar descuento' : 'Hacer descuento'"></span>
+                </button>
+                <span x-show="savings > 0" class="text-amber-700" x-text="'Descontaste ' + money(savings)"></span>
+            </div>
+            <div x-show="discount > 0" class="flex justify-between text-sm text-slate-500 mb-1">
+                <span>Subtotal</span><span x-text="money(subtotal)"></span>
+            </div>
+            <div x-show="discount > 0" class="flex justify-between text-sm text-amber-700 mb-1">
+                <span x-text="'Descuento' + (discountMode === 'percent' ? ' ' + discountValue + '%' : '')"></span>
+                <span x-text="'− ' + money(discount)"></span>
+            </div>
+            <p x-show="overLimit" class="text-sm text-red-600 mb-2">
+                <i class="fas fa-circle-exclamation"></i> Pasa del máximo permitido (<span x-text="settings.maxDiscountPercent"></span>% = <span x-text="money(maxDiscount)"></span>).
+            </p>
             <div class="flex items-end justify-between mb-3">
                 <span class="text-slate-500">Total <span class="text-xs" x-show="cart.length" x-text="'(' + itemsCount + ' productos)'"></span></span>
                 <span class="text-4xl font-bold text-slate-800" x-text="money(total)"></span>
@@ -137,6 +161,68 @@
             </button>
         </div>
     </aside>
+
+    {{-- ── Rebajar el precio de un producto ───────────────────────────── --}}
+    <div x-show="priceLine" x-cloak x-transition.opacity @keydown.escape.window="priceLine = null; focusSearch()"
+         class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-3">
+        <form @submit.prevent="savePrice()" @click.outside="priceLine = null; focusSearch()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <template x-if="priceLine">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Rebajar precio</h3>
+                    <p class="text-slate-500 mb-4"><span x-text="priceLine.name"></span>
+                        <span x-show="priceLine.detail" x-text="'(' + priceLine.detail + ')'"></span> ·
+                        precio normal <strong x-text="money(priceLine.listPrice)"></strong></p>
+
+                    <label class="block text-sm font-medium text-slate-700 mb-2">¿A cuánto se lo dejas?</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">S/</span>
+                        <input type="text" inputmode="decimal" x-ref="priceInput" x-model="priceInput" :placeholder="priceLine.listPrice.toFixed(2)"
+                               class="w-full pl-14 pr-4 py-4 text-3xl font-bold border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
+                    </div>
+                    <p class="text-sm mt-2 text-amber-700" x-show="toNumber(priceInput) > 0 && toNumber(priceInput) < priceLine.listPrice"
+                       x-text="'Rebaja de ' + money((priceLine.listPrice - toNumber(priceInput)) * priceLine.qty)"></p>
+
+                    <div class="grid grid-cols-2 gap-3 mt-5">
+                        <button type="button" @click="priceInput = ''; savePrice()" class="py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold">Precio normal</button>
+                        <button type="submit" class="py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold">Aplicar</button>
+                    </div>
+                </div>
+            </template>
+        </form>
+    </div>
+
+    {{-- ── Descuento a toda la venta ───────────────────────────────────── --}}
+    <div x-show="discountOpen" x-cloak x-transition.opacity @keydown.escape.window="discountOpen = false; focusSearch()"
+         class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-3">
+        <form @submit.prevent="saveDiscount()" @click.outside="discountOpen = false; focusSearch()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="text-xl font-bold text-slate-800">Descuento a la venta</h3>
+            <p class="text-slate-500 mb-4">Venta de <strong x-text="money(subtotal)"></strong>. Máximo <span x-text="settings.maxDiscountPercent"></span>% en total.</p>
+
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button type="button" @click="discountMode = 'amount'" :class="discountMode === 'amount' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200'"
+                        class="py-2.5 rounded-lg border-2 font-semibold">En soles (S/)</button>
+                <button type="button" @click="discountMode = 'percent'" :class="discountMode === 'percent' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200'"
+                        class="py-2.5 rounded-lg border-2 font-semibold">En porcentaje (%)</button>
+            </div>
+            <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400" x-text="discountMode === 'amount' ? 'S/' : '%'"></span>
+                <input type="text" inputmode="decimal" x-ref="discountInput" x-model="discountDraft" placeholder="0"
+                       class="w-full pl-14 pr-4 py-4 text-3xl font-bold border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
+            </div>
+            <div class="flex gap-2 mt-3" x-show="discountMode === 'percent'">
+                <template x-for="p in [5, 10, 15]" :key="p">
+                    <button type="button" x-show="p <= settings.maxDiscountPercent" @click="discountDraft = String(p)" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold" x-text="p + '%'"></button>
+                </template>
+            </div>
+            <p class="text-sm mt-3 text-slate-600" x-show="toNumber(discountDraft) > 0"
+               x-text="'Queda en ' + money(subtotal - (discountMode === 'percent' ? subtotal * toNumber(discountDraft) / 100 : toNumber(discountDraft)))"></p>
+
+            <div class="grid grid-cols-2 gap-3 mt-5">
+                <button type="button" @click="discountDraft = ''; saveDiscount()" class="py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold">Sin descuento</button>
+                <button type="submit" class="py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold">Aplicar</button>
+            </div>
+        </form>
+    </div>
 
     {{-- ── ¿Cómo lo vende? (unidad, media caja, caja) ──────────────────── --}}
     <div x-show="chooser" x-cloak x-transition.opacity @keydown.escape.window="chooser = null; focusSearch()"
@@ -251,21 +337,27 @@
                     <h3 class="text-xl font-bold text-slate-800 flex-1">
                         Pago con <span x-text="methods[method]"></span>
                     </h3>
-                    <span class="text-xl font-bold text-slate-800" x-text="money(total)"></span>
+                    <span class="text-xl font-bold text-slate-800" x-text="money(charged)"></span>
                 </div>
 
                 {{-- Efectivo: con cuánto paga y el vuelto --}}
                 <template x-if="method === 'efectivo'">
                     <div>
+                        {{-- Redondeo a S/ 0.10: se explica para que el cajero no se confunda --}}
+                        <p x-show="charged !== total" class="mb-3 px-3 py-2 rounded-lg bg-sky-50 text-sky-800 text-sm">
+                            <i class="fas fa-coins"></i>
+                            La venta es <strong x-text="money(total)"></strong>. En efectivo se cobra
+                            <strong x-text="money(charged)"></strong> (redondeo a 10 céntimos).
+                        </p>
                         <label class="block text-sm font-medium text-slate-700 mb-2">¿Con cuánto paga?</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">S/</span>
                             <input type="text" inputmode="decimal" x-ref="received" x-model="received" @keydown.enter.prevent="confirm()"
-                                   :placeholder="total.toFixed(2)"
+                                   :placeholder="charged.toFixed(2)"
                                    class="w-full pl-14 pr-4 py-4 text-3xl font-bold border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
                         </div>
                         <div class="flex flex-wrap gap-2 mt-3">
-                            <button type="button" @click="received = total.toFixed(2)" class="px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold">Exacto</button>
+                            <button type="button" @click="received = charged.toFixed(2)" class="px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold">Exacto</button>
                             <template x-for="bill in bills" :key="bill">
                                 <button type="button" @click="received = String(bill)" class="px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold" x-text="'S/ ' + bill"></button>
                             </template>
@@ -372,7 +464,7 @@
                 <button type="button" @click="confirm()" :disabled="!canConfirm || sending"
                         class="mt-5 w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xl font-bold rounded-xl flex items-center justify-center gap-3">
                     <i class="fas" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'"></i>
-                    <span x-text="sending ? 'Guardando...' : (method === 'fiado' ? 'Anotar fiado de ' : 'Cobrar ') + money(total)"></span>
+                    <span x-text="sending ? 'Guardando...' : (method === 'fiado' ? 'Anotar fiado de ' : 'Cobrar ') + money(charged)"></span>
                 </button>
             </div>
 

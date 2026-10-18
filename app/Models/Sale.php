@@ -63,8 +63,11 @@ class Sale extends Model
         'taxable_amount',
         'exonerated_amount',
         'unaffected_amount',
+        'gross_total',
+        'discount_amount',
         'igv',
         'total',
+        'rounding_amount',
         'credit_balance',
         'status',
         'voided_at',
@@ -87,8 +90,11 @@ class Sale extends Model
             'taxable_amount'    => 'decimal:2',
             'exonerated_amount' => 'decimal:2',
             'unaffected_amount' => 'decimal:2',
+            'gross_total'       => 'decimal:2',
+            'discount_amount'   => 'decimal:2',
             'igv'               => 'decimal:2',
             'total'             => 'decimal:2',
+            'rounding_amount'   => 'decimal:2',
             'credit_balance'    => 'decimal:2',
             'voided_at'         => 'datetime',
             'sunat_sent_at'     => 'datetime',
@@ -139,6 +145,12 @@ class Sale extends Model
     public function isVoided(): bool
     {
         return $this->status === self::VOIDED;
+    }
+
+    /** Lo que realmente se cobró (total con el redondeo del efectivo) */
+    public function charged(): float
+    {
+        return round((float) $this->total - (float) $this->rounding_amount, 2);
     }
 
     public function isElectronic(): bool

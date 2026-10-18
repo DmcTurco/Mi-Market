@@ -12,3 +12,4 @@
 
 <x-nav-heading>Personal</x-nav-heading>
 <x-nav-link :href="route('company.employees.index')" icon="fa-users" :active="request()->routeIs('company.employees.*')">Empleados</x-nav-link>
+<x-nav-link :href="route('company.settings.edit')" icon="fa-gear" :active="request()->routeIs('company.settings.*')">Configuración</x-nav-link>

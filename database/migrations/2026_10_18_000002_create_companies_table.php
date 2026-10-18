@@ -22,6 +22,13 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            // Configuración de ventas
+            $table->boolean('cash_rounding')->default(true);                       // redondear el efectivo a S/ 0.10
+            $table->string('rounding_favor', 10)->default('customer');            // customer (hacia abajo) | business (hacia arriba)
+            $table->boolean('allow_discounts')->default(true);                    // el cajero puede rebajar precios y dar descuentos
+            $table->unsignedTinyInteger('max_discount_percent')->default(20);     // tope de descuento sobre la venta
+
             $table->rememberToken();
             $table->timestamps();
         });

@@ -57,6 +57,7 @@
                             <td class="px-4 py-3 font-medium">
                                 {{ $sale->voucherNumber() }}
                                 @if($sale->isVoided())<span class="ml-1 text-xs font-semibold text-red-600">ANULADA</span>@endif
+                                @if((float) $sale->discount_amount > 0)<span class="ml-1 text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded" title="Se descontó {{ money($sale->discount_amount) }}">−{{ money($sale->discount_amount) }}</span>@endif
                             </td>
                             <td class="px-4 py-3">{{ $sale->employee?->name }}</td>
                             <td class="px-4 py-3">{{ $sale->paymentLabel() }}{{ $sale->customer_name ? ' · ' . $sale->customer_name : '' }}</td>

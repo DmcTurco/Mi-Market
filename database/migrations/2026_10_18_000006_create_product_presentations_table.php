@@ -24,21 +24,10 @@ return new class extends Migration
 
             $table->unique(['company_id', 'barcode']);
         });
-
-        Schema::table('sale_items', function (Blueprint $table) {
-            $table->foreignId('presentation_id')->nullable()->after('product_id')
-                ->constrained('product_presentations')->nullOnDelete();
-            $table->decimal('units_per_item', 12, 3)->default(1)->after('quantity'); // stock que descuenta cada una
-        });
     }
 
     public function down(): void
     {
-        Schema::table('sale_items', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('presentation_id');
-            $table->dropColumn('units_per_item');
-        });
-
         Schema::dropIfExists('product_presentations');
     }
 };

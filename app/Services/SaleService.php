@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\BusinessException;
 use App\Models\CashRegister;
 use App\Models\Client;
+use App\Models\Company;
 use App\Models\DocumentSeries;
 use App\Models\Employee;
 use App\Models\Product;
@@ -41,12 +42,13 @@ class SaleService
             throw new BusinessException('Tu caja está cerrada. Ábrela para poder vender.');
         }
 
-        $companyId = (int) $employee->company_id;
+        $company   = $employee->company;
+        $companyId = (int) $company->id;
         $items     = $this->mergeItems($data['items']);
         $voucher   = $data['voucher_type'];
         $method    = $data['payment_method'];
 
-        return DB::transaction(function () use ($employee, $register, $data, $companyId, $items, $voucher, $method) {
+        return DB::transaction(function () use ($employee, $register, $data, $company, $companyId, $items, $voucher, $method) {
             // Se bloquean en orden de id para que dos cajas vendiendo lo mismo no se traben
             $products = Product::where('company_id', $companyId)
                 ->whereIn('id', array_unique(array_column($items, 'product_id')))
@@ -79,22 +81,34 @@ class SaleService
                     throw new BusinessException("«{$product->name}» se vende por {$how}: la cantidad debe ser entera.");
                 }
 
+                $listPrice = $presentation ? (float) $presentation->price : (float) $product->sale_price;
+                $price     = $this->specialPrice($product, $listPrice, $item['price'], $company);
+
                 $lines[] = [
                     'product'      => $product,
                     'presentation' => $presentation,
                     'name'         => $presentation ? "{$product->name} ({$presentation->label()})" : $product->name,
                     'quantity'     => $item['quantity'],
                     'units'        => $presentation ? (float) $presentation->units : 1.0,
-                    'price'        => $presentation ? (float) $presentation->price : (float) $product->sale_price,
+                    'list_price'   => $listPrice,
+                    'price'        => $price,
+                    'gross'        => round($listPrice * $item['quantity'], 2),
+                    'total'        => round($price * $item['quantity'], 2),
                     'affectation'  => $product->igv_affectation,
                 ];
             }
 
+            $lines = $this->applyDiscount($lines, $data, $company);
+            $gross = round(array_sum(array_column($lines, 'gross')), 2);
+
             $totals = $this->tax->calculate($lines);
             $total  = $totals['total'];
 
+            // Efectivo: se cobra redondeado a S/ 0.10; el comprobante mantiene el total exacto
+            $rounding = $method === Sale::CASH ? $company->cashRounding($total) : 0.0;
+
             $customer = $this->customer($companyId, $data, $voucher, $method, $total);
-            [$received, $change] = $this->cash($method, $data['amount_received'] ?? null, $total);
+            [$received, $change] = $this->cash($method, $data['amount_received'] ?? null, round($total - $rounding, 2));
 
             [$series, $number] = DocumentSeries::next($companyId, $voucher);
 
@@ -116,8 +130,11 @@ class SaleService
                 'taxable_amount'         => $totals['taxable'],
                 'exonerated_amount'      => $totals['exonerated'],
                 'unaffected_amount'      => $totals['unaffected'],
+                'gross_total'            => $gross,
+                'discount_amount'        => round($gross - $total, 2),
                 'igv'                    => $totals['igv'],
                 'total'                  => $total,
+                'rounding_amount'        => $rounding,
                 'credit_balance'         => $method === Sale::CREDIT ? $total : 0,
                 'status'                 => Sale::ACTIVE,
                 'sunat_status'           => $voucher === Sale::TICKET ? Sale::SUNAT_NOT_APPLICABLE : Sale::SUNAT_PENDING,
@@ -133,8 +150,10 @@ class SaleService
                     'unit'            => $product->unit,
                     'quantity'        => $line['quantity'],
                     'units_per_item'  => $line['units'],
+                    'list_price'      => $line['list_price'],
                     'unit_price'      => $line['price'],
                     'total'           => $totals['lines'][$i]['total'],
+                    'discount'        => round($line['gross'] - $totals['lines'][$i]['total'], 2),
                     'igv_affectation' => $line['affectation'],
                     'base'            => $totals['lines'][$i]['base'],
                     'igv'             => $totals['lines'][$i]['igv'],
@@ -200,8 +219,13 @@ class SaleService
             $presentationId = !empty($item['presentation_id']) ? (int) $item['presentation_id'] : null;
             $key            = $productId . ':' . ($presentationId ?? 0);
 
-            $merged[$key] ??= ['product_id' => $productId, 'presentation_id' => $presentationId, 'quantity' => 0.0];
+            $merged[$key] ??= ['product_id' => $productId, 'presentation_id' => $presentationId, 'quantity' => 0.0, 'price' => null];
             $merged[$key]['quantity'] = round($merged[$key]['quantity'] + (float) $item['quantity'], 3);
+
+            // Precio rebajado por el cajero (opcional)
+            if (isset($item['price']) && $item['price'] !== '' && $item['price'] !== null) {
+                $merged[$key]['price'] = round((float) $item['price'], 2);
+            }
         }
 
         if (!$merged) {
@@ -209,6 +233,80 @@ class SaleService
         }
 
         return array_values($merged);
+    }
+
+    /**
+     * Precio rebajado de una línea ("te lo dejo a S/ 6"). Solo se puede bajar, nunca subir,
+     * y solo si la empresa permite descuentos. El tope total lo revisa applyDiscount().
+     *
+     * @throws BusinessException
+     */
+    private function specialPrice(Product $product, float $listPrice, ?float $requested, Company $company): float
+    {
+        if ($requested === null || abs($requested - $listPrice) < 0.005) {
+            return $listPrice;
+        }
+        if ($requested <= 0) {
+            throw new BusinessException("El precio de «{$product->name}» debe ser mayor que cero.");
+        }
+        if ($requested > $listPrice) {
+            throw new BusinessException("No se puede cobrar «{$product->name}» más caro que su precio (" . Qty::money($listPrice) . ').');
+        }
+        if (!$company->allow_discounts) {
+            throw new BusinessException('La tienda no permite rebajar precios. Pídele al encargado que lo active en Configuración.');
+        }
+
+        return $requested;
+    }
+
+    /**
+     * Descuento a toda la venta (en soles o en %): se reparte entre las líneas según su importe
+     * y la última absorbe el centavo que sobre. Luego revisa el tope de la empresa sobre el
+     * total de rebajas + descuento.
+     *
+     * @throws BusinessException
+     */
+    private function applyDiscount(array $lines, array $data, Company $company): array
+    {
+        $subtotal = round(array_sum(array_column($lines, 'total')), 2);
+        $amount   = round((float) ($data['discount_amount'] ?? 0), 2);
+        $percent  = (float) ($data['discount_percent'] ?? 0);
+
+        if ($percent > 0) {
+            $amount = round($subtotal * $percent / 100, 2);
+        }
+
+        if ($amount > 0) {
+            if (!$company->allow_discounts) {
+                throw new BusinessException('La tienda no permite descuentos. Pídele al encargado que lo active en Configuración.');
+            }
+            if ($amount >= $subtotal) {
+                throw new BusinessException('El descuento no puede ser igual o mayor que el total de la venta.');
+            }
+
+            $lastKey   = array_key_last($lines);
+            $allocated = 0.0;
+            foreach ($lines as $key => &$line) {
+                $share = $key === $lastKey
+                    ? round($amount - $allocated, 2)
+                    : round($amount * $line['total'] / $subtotal, 2);
+                $allocated += $share;
+                $line['total'] = round($line['total'] - $share, 2);
+            }
+            unset($line);
+        }
+
+        // Tope: rebajas + descuento no pasan del % que permite la empresa
+        $gross    = round(array_sum(array_column($lines, 'gross')), 2);
+        $discount = round($gross - array_sum(array_column($lines, 'total')), 2);
+        $max      = round($gross * $company->max_discount_percent / 100, 2);
+
+        if ($discount > $max + 0.001) {
+            throw new BusinessException('El descuento máximo es ' . $company->max_discount_percent . '% de la venta (' . Qty::money($max) . '). '
+                . 'Estás descontando ' . Qty::money($discount) . '.');
+        }
+
+        return $lines;
     }
 
     /**

@@ -50,14 +50,20 @@
         @foreach($sale->items as $item)
             <tr><td colspan="2">{{ $item->product_name }}</td></tr>
             <tr>
-                <td>&nbsp;&nbsp;{{ qty($item->quantity) }} x {{ number_format($item->unit_price, 2) }}</td>
-                <td class="r">{{ number_format($item->total, 2) }}</td>
+                <td>&nbsp;&nbsp;{{ qty($item->quantity) }} x {{ number_format($item->list_price ?? $item->unit_price, 2) }}</td>
+                <td class="r">{{ number_format((float) $item->total + (float) $item->discount, 2) }}</td>
             </tr>
+            @if((float) $item->discount > 0)
+                <tr><td>&nbsp;&nbsp;Descuento</td><td class="r">-{{ number_format($item->discount, 2) }}</td></tr>
+            @endif
         @endforeach
     </table>
     <hr>
 
     <table>
+        @if((float) $sale->discount_amount > 0)
+            <tr><td>Ahorraste</td><td class="r">-{{ number_format($sale->discount_amount, 2) }}</td></tr>
+        @endif
         @if($sale->voucher_type !== 'ticket')
             @if((float) $sale->taxable_amount > 0)<tr><td>Op. gravada</td><td class="r">{{ number_format($sale->taxable_amount, 2) }}</td></tr>@endif
             @if((float) $sale->exonerated_amount > 0)<tr><td>Op. exonerada</td><td class="r">{{ number_format($sale->exonerated_amount, 2) }}</td></tr>@endif
@@ -65,6 +71,10 @@
             <tr><td>IGV 18%</td><td class="r">{{ number_format($sale->igv, 2) }}</td></tr>
         @endif
         <tr class="b big"><td>TOTAL</td><td class="r">{{ money($sale->total) }}</td></tr>
+        @if((float) $sale->rounding_amount != 0)
+            <tr><td>Redondeo</td><td class="r">{{ (float) $sale->rounding_amount > 0 ? '-' : '+' }}{{ number_format(abs((float) $sale->rounding_amount), 2) }}</td></tr>
+            <tr class="b"><td>COBRADO</td><td class="r">{{ money($sale->charged()) }}</td></tr>
+        @endif
         <tr><td>Pago</td><td class="r">{{ $sale->paymentLabel() }}</td></tr>
         @if($sale->amount_received !== null)
             <tr><td>Recibido</td><td class="r">{{ number_format($sale->amount_received, 2) }}</td></tr>

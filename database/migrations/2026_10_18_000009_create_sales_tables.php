@@ -45,8 +45,11 @@ return new class extends Migration
             $table->decimal('taxable_amount', 10, 2)->default(0);         // base gravada (sin IGV)
             $table->decimal('exonerated_amount', 10, 2)->default(0);
             $table->decimal('unaffected_amount', 10, 2)->default(0);
+            $table->decimal('gross_total', 10, 2)->default(0);            // a precio normal, sin descuentos
+            $table->decimal('discount_amount', 10, 2)->default(0);        // rebajas + descuento (ya restado del total)
             $table->decimal('igv', 10, 2)->default(0);
-            $table->decimal('total', 10, 2);                              // lo que pagó el cliente
+            $table->decimal('total', 10, 2);                              // total del comprobante (IGV incluido)
+            $table->decimal('rounding_amount', 10, 2)->default(0);        // efectivo: + perdonado al cliente, − cobrado de más
             $table->decimal('credit_balance', 10, 2)->default(0);         // lo que aún debe (fiado)
 
             $table->string('status', 10)->default('active');              // active | voided
@@ -73,11 +76,16 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sale_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->restrictOnDelete();
-            $table->string('product_name', 150);
+            $table->foreignId('presentation_id')->nullable()                  // caja, media caja... (null = suelto)
+                ->constrained('product_presentations')->nullOnDelete();
+            $table->string('product_name', 150);                          // incluye la presentación: "Cerveza (Caja x12)"
             $table->string('unit', 10);
             $table->decimal('quantity', 12, 3);
-            $table->decimal('unit_price', 10, 2);                         // precio final por unidad (IGV incluido)
-            $table->decimal('total', 10, 2);                              // cantidad × precio
+            $table->decimal('units_per_item', 12, 3)->default(1);         // stock que descuenta cada una (caja = 12)
+            $table->decimal('list_price', 10, 2)->nullable();             // precio normal
+            $table->decimal('unit_price', 10, 2);                         // precio cobrado por unidad (con rebaja, IGV incluido)
+            $table->decimal('total', 10, 2);                              // total de la línea con todos los descuentos
+            $table->decimal('discount', 10, 2)->default(0);               // cuánto se rebajó en esta línea
             $table->string('igv_affectation', 2);
             $table->decimal('base', 10, 2);                               // total sin IGV
             $table->decimal('igv', 10, 2)->default(0);

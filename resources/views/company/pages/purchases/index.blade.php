@@ -17,10 +17,13 @@
                 <i class="fas fa-truck-ramp-box text-brand-700"></i>
             </div>
             <div class="flex-1 min-w-0">
-                <p class="font-medium text-slate-800">{{ $purchase->supplier ?: 'Sin proveedor' }}</p>
+                <p class="font-medium text-slate-800">
+                    {{ $purchase->supplier ?: 'Sin proveedor' }}
+                    @if($purchase->isVoided())<span class="ml-1 text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">ANULADO</span>@endif
+                </p>
                 <p class="text-xs text-slate-500">{{ $purchase->created_at->format('d/m/Y H:i') }} · {{ $purchase->items_count }} {{ $purchase->items_count === 1 ? 'producto' : 'productos' }} · {{ $purchase->employee?->name ?? 'La empresa' }}</p>
             </div>
-            <span class="font-bold">{{ money($purchase->total) }}</span>
+            <span @class(['font-bold', 'line-through text-slate-400' => $purchase->isVoided()])>{{ money($purchase->total) }}</span>
             <i class="fas fa-chevron-right text-slate-300"></i>
         </a>
     @empty

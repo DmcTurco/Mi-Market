@@ -37,6 +37,25 @@ class PurchaseController extends Controller
 
     public function show(Purchase $purchase)
     {
-        return $this->showPurchase($purchase, 'employee.pages.purchases.show');
+        return $this->showPurchase($purchase, 'employee.pages.purchases.show', [
+            'voidUrl' => $this->canVoid($purchase) ? route('employee.purchases.void', $purchase) : null,
+        ]);
+    }
+
+    /** El empleado corrige su propio error del día; lo demás lo anula la empresa */
+    public function void(Request $request, Purchase $purchase, PurchaseService $service)
+    {
+        $this->ensureOwned($purchase);
+        abort_unless($this->canVoid($purchase), 403, 'Solo puedes anular la mercadería que registraste hoy. Pídeselo al encargado.');
+
+        $service->void($purchase, $this->validateVoid($request));
+
+        return redirect()->route('employee.purchases.show', $purchase)
+            ->with('success', 'Ingreso anulado. El stock volvió a como estaba; ya puedes registrarlo bien.');
+    }
+
+    private function canVoid(Purchase $purchase): bool
+    {
+        return (int) $purchase->employee_id === (int) auth()->id() && $purchase->created_at->isToday();
     }
 }

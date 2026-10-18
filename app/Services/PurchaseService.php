@@ -8,7 +8,9 @@ use App\Models\CashRegister;
 use App\Models\Employee;
 use App\Models\Product;
 use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use App\Models\StockMovement;
+use App\Support\Qty;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -96,6 +98,58 @@ class PurchaseService
             $purchase->save();
 
             return $purchase;
+        });
+    }
+
+    /**
+     * Anula un ingreso registrado por error: el stock vuelve a como estaba, el costo del producto
+     * vuelve al de su ingreso anterior y, si se pagó con dinero de una caja que sigue abierta,
+     * el gasto se borra (el dinero vuelve a esa caja).
+     *
+     * @throws BusinessException si ya se vendió parte de esa mercadería y no alcanza el stock para devolverla
+     */
+    public function void(Purchase $purchase, string $reason): void
+    {
+        DB::transaction(function () use ($purchase, $reason) {
+            $purchase = Purchase::lockForUpdate()->with('items.product', 'cashMovement.cashRegister')->findOrFail($purchase->id);
+
+            if ($purchase->isVoided()) {
+                throw new BusinessException('Este ingreso ya estaba anulado.');
+            }
+
+            foreach ($purchase->items as $item) {
+                try {
+                    $this->stock->move($item->product_id, -(float) $item->quantity, StockMovement::PURCHASE_VOID, $purchase->id, $reason);
+                } catch (BusinessException) {
+                    throw new BusinessException(
+                        "No se puede anular: ya se vendió parte de «{$item->product->name}» (quedan " . Qty::format($item->product->fresh()->stock)
+                        . ' y habría que quitar ' . Qty::format($item->quantity) . '). Corrige el stock desde Productos → Editar.'
+                    );
+                }
+
+                // El costo vuelve al del último ingreso válido de ese producto (si hay)
+                $previousCost = PurchaseItem::where('product_id', $item->product_id)
+                    ->where('purchase_id', '!=', $purchase->id)
+                    ->whereHas('purchase', fn ($q) => $q->where('status', Purchase::ACTIVE))
+                    ->latest('id')
+                    ->value('unit_cost');
+                if ($previousCost !== null) {
+                    $item->product->update(['purchase_price' => $previousCost]);
+                }
+            }
+
+            // Pagado con la caja: si sigue abierta, el dinero vuelve; si ya se cerró, el cuadre no se toca
+            $movement = $purchase->cashMovement;
+            if ($movement && $movement->cashRegister->isOpen()) {
+                $purchase->cash_movement_id = null;
+                $movement->delete();
+            }
+
+            $purchase->update([
+                'status'      => Purchase::VOIDED,
+                'voided_at'   => now(),
+                'void_reason' => $reason,
+            ]);
         });
     }
 }

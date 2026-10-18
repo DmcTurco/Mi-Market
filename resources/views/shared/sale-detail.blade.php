@@ -13,14 +13,40 @@
             <tbody class="divide-y divide-slate-100">
                 @foreach($sale->items as $item)
                     <tr>
-                        <td class="px-5 py-3 font-medium text-slate-800">{{ $item->product_name }}</td>
+                        <td class="px-5 py-3 font-medium text-slate-800">
+                            {{ $item->product_name }}
+                            @if((float) $item->discount > 0)
+                                <span class="block text-xs font-normal text-amber-700">Descuento {{ money($item->discount) }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-right">{{ qty($item->quantity) }}</td>
-                        <td class="px-4 py-3 text-right text-slate-500">{{ money($item->unit_price) }}</td>
+                        <td class="px-4 py-3 text-right text-slate-500">
+                            @if($item->list_price !== null && (float) $item->unit_price < (float) $item->list_price)
+                                <span class="line-through text-xs">{{ money($item->list_price) }}</span>
+                            @endif
+                            {{ money($item->unit_price) }}
+                        </td>
                         <td class="px-5 py-3 text-right font-semibold">{{ money($item->total) }}</td>
                     </tr>
                 @endforeach
             </tbody>
             <tfoot class="border-t-2 border-slate-200">
+                @if((float) $sale->discount_amount > 0)
+                    <tr>
+                        <td colspan="3" class="px-5 pt-3 text-right text-slate-500">A precio normal</td>
+                        <td class="px-5 pt-3 text-right text-slate-500">{{ money($sale->gross_total) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="px-5 text-right text-amber-700">Descuentos</td>
+                        <td class="px-5 text-right text-amber-700">− {{ money($sale->discount_amount) }}</td>
+                    </tr>
+                @endif
+                @if((float) $sale->rounding_amount != 0)
+                    <tr>
+                        <td colspan="3" class="px-5 text-right text-slate-500">Redondeo del efectivo · se cobró {{ money($sale->charged()) }}</td>
+                        <td class="px-5 text-right text-slate-500">{{ (float) $sale->rounding_amount > 0 ? '−' : '+' }} {{ money(abs((float) $sale->rounding_amount)) }}</td>
+                    </tr>
+                @endif
                 <tr>
                     <td colspan="3" class="px-5 py-3 text-right font-semibold text-slate-600">Total</td>
                     <td class="px-5 py-3 text-right text-xl font-bold">{{ money($sale->total) }}</td>

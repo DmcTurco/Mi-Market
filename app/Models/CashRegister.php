@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Caja de un turno. closed_at = null mientras está abierta.
  *
- * Efectivo esperado al cerrar = apertura + ventas en efectivo + abonos en efectivo + otros ingresos − gastos.
+ * Efectivo esperado al cerrar = apertura + ventas en efectivo (ya redondeadas) + abonos en efectivo + otros ingresos − gastos.
  */
 class CashRegister extends Model
 {
@@ -82,8 +82,9 @@ class CashRegister extends Model
     public function summary(): array
     {
         $byMethod = array_fill_keys(array_keys(Sale::PAYMENT_METHODS), 0.0);
+        // Lo realmente cobrado: el efectivo se cobra redondeado (total − redondeo)
         $rows = $this->sales()->where('status', Sale::ACTIVE)
-            ->selectRaw('payment_method, SUM(total) as total, COUNT(*) as count')
+            ->selectRaw('payment_method, SUM(total - rounding_amount) as total, COUNT(*) as count')
             ->groupBy('payment_method')
             ->get();
 

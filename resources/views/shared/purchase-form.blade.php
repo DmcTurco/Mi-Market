@@ -54,11 +54,23 @@
                     <span class="block text-xs text-brand-700 mt-0.5" x-show="item.presentation_id !== '' && baseUnits(item) > 0" x-text="'= ' + baseUnits(item) + ' ' + plural(item.unit)"></span>
                 </label>
                 <label class="text-sm text-slate-500">
-                    <span x-text="item.presentation_id !== '' ? 'Costo por ' + item.presentations.find(p => p.id === item.presentation_id)?.name.toLowerCase() + ' (S/)' : 'Costo c/u (S/)'"></span>
+                    {{-- Por cajas se escribe lo que costó UNA CAJA; debajo se ve cuánto sale cada unidad --}}
+                    <span :class="item.presentation_id !== '' ? 'font-bold text-brand-700' : ''"
+                          x-text="item.presentation_id !== '' ? 'Costo de 1 ' + presentationName(item) + ' (S/)' : 'Costo c/u (S/)'"></span>
                     <input type="text" inputmode="decimal" :name="`items[${index}][unit_cost]`" x-model="item.unit_cost"
-                           class="block w-28 mt-1 px-3 py-2 text-lg border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                           :class="looksLikeUnitCost(item) ? 'border-amber-500 bg-amber-50' : 'border-slate-300'"
+                           class="block w-32 mt-1 px-3 py-2 text-lg border-2 rounded-lg focus:outline-none focus:border-brand-500">
+                    <span class="block text-xs text-slate-500 mt-0.5" x-show="item.presentation_id !== '' && costPerUnit(item) !== null"
+                          x-text="'= S/ ' + (costPerUnit(item) ?? 0).toFixed(2) + ' cada ' + item.unit.toLowerCase()"></span>
                 </label>
                 <p class="w-24 text-right font-semibold" x-text="money(lineTotal(item))"></p>
+                <p x-show="looksLikeUnitCost(item)" class="basis-full text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    ¿Seguro? Escribiste <strong x-text="'S/ ' + item.unit_cost"></strong> por <strong x-text="presentationName(item)"></strong>,
+                    pero una sola unidad se vende a <strong x-text="money(item.price)"></strong>.
+                    Si es lo que costó <em>una</em> unidad, escribe el costo de la <span x-text="presentationName(item)"></span> completa
+                    (<span x-text="'S/ ' + (toNumber(item.unit_cost) * unitsOf(item)).toFixed(2)"></span>).
+                </p>
                 <button type="button" @click="remove(item)" title="Quitar" class="w-9 h-9 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600">
                     <i class="fas fa-xmark"></i>
                 </button>

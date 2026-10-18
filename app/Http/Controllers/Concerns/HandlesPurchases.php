@@ -26,6 +26,7 @@ trait HandlesPurchases
                 'barcode'       => $p->barcode,
                 'unit'          => $p->unitLabel(),
                 'cost'          => (float) $p->purchase_price,
+                'price'         => (float) $p->sale_price,   // para avisar si el costo por caja parece de una sola unidad
                 'stock'         => (float) $p->stock,
                 'presentations' => $p->presentations->map(fn ($pr) => [
                     'id'      => $pr->id,
@@ -53,11 +54,19 @@ trait HandlesPurchases
         ]);
     }
 
-    protected function showPurchase(Purchase $purchase, string $view)
+    protected function showPurchase(Purchase $purchase, string $view, array $data = [])
     {
         $this->ensureOwned($purchase);
         $purchase->load('items.product', 'employee');
 
-        return view($view, compact('purchase'));
+        return view($view, compact('purchase') + $data);
+    }
+
+    protected function validateVoid(Request $request): string
+    {
+        return $request->validate(
+            ['reason' => 'required|string|max:255'],
+            ['reason.required' => 'Escribe por qué se anula (ej. me equivoqué en el precio).']
+        )['reason'];
     }
 }

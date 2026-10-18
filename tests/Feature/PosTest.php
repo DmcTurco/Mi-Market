@@ -71,11 +71,17 @@ class PosTest extends TestCase
         $this->assertEquals(10.0, (float) $sale->exonerated_amount);
     }
 
-    public function test_price_comes_from_database_not_from_browser(): void
+    public function test_a_manipulated_price_beyond_the_discount_limit_is_rejected(): void
     {
         $this->openRegister();
 
+        // El navegador manda S/ 0.01: es una "rebaja" del 99%, muy por encima del tope (20%)
         $this->sell(['items' => [['product_id' => $this->rice->id, 'quantity' => 1, 'price' => 0.01]]])
+            ->assertStatus(422);
+        $this->assertSame(0, Sale::count());
+
+        // Sin precio, se cobra el de la base de datos
+        $this->sell(['items' => [['product_id' => $this->rice->id, 'quantity' => 1]]])
             ->assertOk()->assertJson(['total' => 4.5]);
     }
 

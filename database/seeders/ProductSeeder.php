@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Productos de ejemplo de una bodega para probar el punto de venta.
- * Incluye productos por kilo, por caja/media caja/paquete, algunos casi agotados (aviso de stock bajo),
- * uno sin stock y uno exonerado.
+ * Incluye productos por kilo (abarrotes a granel, verduras y tubérculos), por caja/media caja/paquete,
+ * algunos casi agotados (aviso de stock bajo), uno sin stock y varios exonerados de IGV.
  * Se puede correr varias veces: no duplica productos.
  */
 class ProductSeeder extends Seeder
@@ -47,6 +47,17 @@ class ProductSeeder extends Seeder
             ['Snacks',    'Papas Lays clásicas 42g',       '7750182000505', 'unidad', 1.30, 1.80, 30, 10, '10'],
             ['Snacks',    'Galletas Soda Field',           '7750182000628', 'unidad', 0.70, 1.00, 50, 15, '10'],
             ['Snacks',    'Chocolate Sublime',             '7750182000741', 'unidad', 1.60, 2.20, 3,  10, '10'],
+            // Verduras y tubérculos: por kilo (balanza) y exonerados de IGV (productos agrícolas frescos)
+            ['Verduras y tubérculos', 'Papa amarilla',          null, 'kg',     2.80, 3.50, 40, 10, '20'],
+            ['Verduras y tubérculos', 'Papa blanca',            null, 'kg',     1.60, 2.20, 60, 15, '20'],
+            ['Verduras y tubérculos', 'Camote',                 null, 'kg',     1.90, 2.50, 20, 5,  '20'],
+            ['Verduras y tubérculos', 'Yuca',                   null, 'kg',     2.10, 2.80, 15, 5,  '20'],
+            ['Verduras y tubérculos', 'Cebolla roja',           null, 'kg',     2.30, 3.00, 25, 5,  '20'],
+            ['Verduras y tubérculos', 'Tomate',                 null, 'kg',     2.90, 3.80, 18, 5,  '20'],
+            ['Verduras y tubérculos', 'Zanahoria',              null, 'kg',     1.40, 2.00, 12, 3,  '20'],
+            ['Verduras y tubérculos', 'Limón',                  null, 'kg',     3.50, 4.50, 10, 3,  '20'],
+            ['Verduras y tubérculos', 'Culantro (atado)',       null, 'unidad', 0.30, 0.50, 30, 10, '20'],
+            ['Verduras y tubérculos', 'Plátano de seda',        null, 'unidad', 0.25, 0.40, 50, 15, '20'],
             [null,        'Pan francés',                   null,            'unidad', 0.15, 0.20, 100, 0, '10'],
             [null,        'Bolsa plástica',                null,            'unidad', 0.05, 0.10, 200, 50, '10'],
         ];

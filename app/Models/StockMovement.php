@@ -12,14 +12,16 @@ class StockMovement extends Model
 {
     const SALE       = 'sale';
     const SALE_VOID  = 'sale_void';
-    const PURCHASE   = 'purchase';
-    const ADJUSTMENT = 'adjustment';
+    const PURCHASE      = 'purchase';
+    const PURCHASE_VOID = 'purchase_void';
+    const ADJUSTMENT    = 'adjustment';
 
     const REASONS = [
-        self::SALE       => 'Venta',
-        self::SALE_VOID  => 'Venta anulada',
-        self::PURCHASE   => 'Llegó mercadería',
-        self::ADJUSTMENT => 'Corrección de stock',
+        self::SALE          => 'Venta',
+        self::SALE_VOID     => 'Venta anulada',
+        self::PURCHASE      => 'Llegó mercadería',
+        self::PURCHASE_VOID => 'Mercadería anulada',
+        self::ADJUSTMENT    => 'Corrección de stock',
     ];
 
     protected $fillable = [

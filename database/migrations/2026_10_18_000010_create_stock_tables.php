@@ -18,6 +18,9 @@ return new class extends Migration
             $table->foreignId('cash_movement_id')->nullable()->constrained()->nullOnDelete(); // si se pagó con dinero de la caja
             $table->string('supplier', 150)->nullable();                  // quién la trajo (texto libre)
             $table->decimal('total', 10, 2)->default(0);
+            $table->string('status', 10)->default('active');              // active | voided (registrada por error)
+            $table->timestamp('voided_at')->nullable();
+            $table->string('void_reason', 255)->nullable();
             $table->timestamps();
         });
 

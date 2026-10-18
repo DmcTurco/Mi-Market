@@ -25,6 +25,12 @@ class PosController extends Controller
             'products'   => $company->products()->where('active', true)->with('presentations')->orderBy('name')->get()->map->toPos()->all(),
             'categories' => $company->categories()->where('active', true)->orderBy('name')->get(['id', 'name']),
             'vouchers'   => $this->availableVouchers(),
+            // Reglas de la empresa para el cajero (el servidor las vuelve a validar al cobrar)
+            'settings'   => [
+                'allowDiscounts'     => $company->allow_discounts,
+                'maxDiscountPercent' => $company->max_discount_percent,
+                'rounding'           => $company->cash_rounding ? $company->rounding_favor : null,
+            ],
         ]);
     }
 
@@ -35,6 +41,9 @@ class PosController extends Controller
             'items.*.product_id'      => 'required|integer',
             'items.*.presentation_id' => 'nullable|integer',
             'items.*.quantity'        => 'required|numeric|min:0.001|max:99999',
+            'items.*.price'           => 'nullable|numeric|min:0|max:999999',  // precio rebajado
+            'discount_amount'         => 'nullable|numeric|min:0|max:999999',  // descuento a la venta en S/
+            'discount_percent'        => 'nullable|numeric|min:0|max:100',     // o en %
             'voucher_type'        => ['required', Rule::in($this->availableVouchers())],
             'payment_method'      => ['required', Rule::in(array_keys(Sale::PAYMENT_METHODS))],
             'amount_received'     => 'nullable|numeric|min:0|max:999999',
@@ -54,6 +63,7 @@ class PosController extends Controller
             'id'         => $sale->id,
             'number'     => $sale->voucherNumber(),
             'total'      => (float) $sale->total,
+            'charged'    => $sale->charged(),
             'change'     => $sale->change !== null ? (float) $sale->change : null,
             'ticket_url' => route('employee.sales.ticket', $sale),
             // Stock actualizado de lo vendido, para que la pantalla no muestre datos viejos

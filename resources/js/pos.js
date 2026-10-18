@@ -21,6 +21,17 @@ export default (config) => ({
     vouchers: config.vouchers,
     urls: config.urls,
     methods: config.methods,
+    settings: config.settings ?? { allowDiscounts: false, maxDiscountPercent: 0, rounding: null },
+
+    // Rebaja de una línea ("te lo dejo a S/ 6")
+    priceLine: null,
+    priceInput: '',
+
+    // Descuento a toda la venta
+    discountOpen: false,
+    discountMode: 'amount',     // amount (S/) | percent (%)
+    discountValue: '',
+    discountDraft: '',
 
     search: '',
     category: null,
@@ -56,6 +67,11 @@ export default (config) => ({
 
     money(value) {
         return 'S/ ' + moneyFormat.format(Number(value) || 0);
+    },
+
+    /** Para la vista: "3,50" → 3.5 */
+    toNumber(value) {
+        return toNumber(value);
     },
 
     qtyLabel(value) {
@@ -218,6 +234,7 @@ export default (config) => ({
                 presentationId: presentation?.id ?? null,
                 name: product.name,
                 detail: presentation ? `${presentation.name} x${this.qtyLabel(presentation.units)}` : null,
+                listPrice: presentation ? presentation.price : product.price,
                 price: presentation ? presentation.price : product.price,
                 units,
                 fractional: !presentation && product.fractional,
@@ -265,6 +282,7 @@ export default (config) => ({
 
     clearCart() {
         this.cart = [];
+        this.discountValue = '';
         this.focusSearch();
     },
 
@@ -272,8 +290,98 @@ export default (config) => ({
         return round2(line.price * line.qty);
     },
 
-    get total() {
+    // ── Rebajas y descuento ──────────────────────────────────
+    openPrice(line) {
+        if (!this.settings.allowDiscounts) {
+            this.flash('La tienda no permite rebajar precios.');
+            return;
+        }
+        this.priceLine = line;
+        this.priceInput = line.price === line.listPrice ? '' : String(line.price);
+        this.$nextTick(() => this.$refs.priceInput?.focus());
+    },
+
+    savePrice() {
+        const price = round2(toNumber(this.priceInput));
+        const line = this.priceLine;
+        if (!line) return;
+        if (this.priceInput === '' || price === line.listPrice) {
+            line.price = line.listPrice;
+        } else if (price <= 0) {
+            this.flash('El precio debe ser mayor que cero.');
+            return;
+        } else if (price > line.listPrice) {
+            this.flash(`No se puede cobrar más caro que ${this.money(line.listPrice)}.`);
+            return;
+        } else {
+            line.price = price;
+        }
+        this.priceLine = null;
+        this.focusSearch();
+    },
+
+    openDiscount() {
+        if (!this.settings.allowDiscounts) {
+            this.flash('La tienda no permite descuentos.');
+            return;
+        }
+        this.discountDraft = this.discountValue;
+        this.discountOpen = true;
+        this.$nextTick(() => this.$refs.discountInput?.focus());
+    },
+
+    saveDiscount() {
+        this.discountValue = toNumber(this.discountDraft) > 0 ? this.discountDraft : '';
+        this.discountOpen = false;
+        this.focusSearch();
+    },
+
+    /** Suma de las líneas (ya con rebajas), antes del descuento a la venta */
+    get subtotal() {
         return round2(this.cart.reduce((sum, line) => sum + this.lineTotal(line), 0));
+    },
+
+    /** A precio normal, sin rebajas ni descuentos */
+    get gross() {
+        return round2(this.cart.reduce((sum, line) => sum + round2(line.listPrice * line.qty), 0));
+    },
+
+    get discount() {
+        const value = toNumber(this.discountValue);
+        if (value <= 0) return 0;
+        return this.discountMode === 'percent' ? round2(this.subtotal * value / 100) : round2(value);
+    },
+
+    get total() {
+        return Math.max(0, round2(this.subtotal - this.discount));
+    },
+
+    /** Todo lo que se descontó (rebajas + descuento) */
+    get savings() {
+        return round2(this.gross - this.total);
+    },
+
+    get maxDiscount() {
+        return round2(this.gross * this.settings.maxDiscountPercent / 100);
+    },
+
+    get overLimit() {
+        return this.savings > this.maxDiscount + 0.001 || (this.discount > 0 && this.discount >= this.subtotal);
+    },
+
+    /**
+     * Redondeo del efectivo al múltiplo de S/ 0.10 (igual que Company::cashRounding en el servidor).
+     * Positivo = se le perdona al cliente; negativo = se cobra de más.
+     */
+    roundingFor(total) {
+        const rest = Math.round(total * 100) % 10;
+        if (!this.settings.rounding || rest === 0) return 0;
+        return this.settings.rounding === 'business' ? -round2((10 - rest) / 100) : round2(rest / 100);
+    },
+
+    /** Lo que se cobra: con efectivo, redondeado */
+    get charged() {
+        return this.method === 'efectivo' ? round2(this.total - this.roundingFor(this.total)) : this.total;
     },
 
     get itemsCount() {
@@ -284,6 +392,10 @@ export default (config) => ({
     openCheckout() {
         if (!this.cart.length) {
             this.flash('Primero agrega productos a la venta.');
+            return;
+        }
+        if (this.overLimit) {
+            this.flash(`El descuento pasa del máximo permitido (${this.settings.maxDiscountPercent}% = ${this.money(this.maxDiscount)}).`);
             return;
         }
         this.checkout = true;
@@ -313,18 +425,18 @@ export default (config) => ({
 
     /** Billetes sugeridos para pagar: los que alcanzan */
     get bills() {
-        const total = this.total;
-        return [10, 20, 50, 100, 200].filter((b) => b > total).slice(0, 3);
+        const due = this.charged;
+        return [10, 20, 50, 100, 200].filter((b) => b > due).slice(0, 3);
     },
 
     get change() {
         const received = toNumber(this.received);
-        return received >= this.total ? round2(received - this.total) : null;
+        return received >= this.charged ? round2(received - this.charged) : null;
     },
 
     get missing() {
         const received = toNumber(this.received);
-        return this.received !== '' && received < this.total ? round2(this.total - received) : 0;
+        return this.received !== '' && received < this.charged ? round2(this.charged - received) : 0;
     },
 
     resetCustomer() {
@@ -353,7 +465,7 @@ export default (config) => ({
 
     /** ¿Se puede confirmar? (evita errores obvios antes de enviar) */
     get canConfirm() {
-        if (!this.method) return false;
+        if (!this.method || this.overLimit) return false;
         if (this.method === 'efectivo' && this.missing > 0) return false;
         if (this.method === 'fiado' && !this.customer.id && !this.customer.name.trim()) return false;
         if (this.voucher === 'factura' && (this.customer.document.replace(/\D/g, '').length !== 11 || !this.customer.name.trim())) return false;
@@ -367,10 +479,18 @@ export default (config) => ({
 
         try {
             const { data } = await window.axios.post(this.urls.store, {
-                items: this.cart.map((l) => ({ product_id: l.productId, presentation_id: l.presentationId, quantity: l.qty })),
+                items: this.cart.map((l) => ({
+                    product_id: l.productId,
+                    presentation_id: l.presentationId,
+                    quantity: l.qty,
+                    price: l.price !== l.listPrice ? l.price : null,   // solo si se rebajó
+                })),
+                discount_amount: this.discountMode === 'amount' && this.discount > 0 ? this.discount : null,
+                discount_percent: this.discountMode === 'percent' && this.discount > 0 ? toNumber(this.discountValue) : null,
                 voucher_type: this.voucher,
                 payment_method: this.method,
                 amount_received: this.method === 'efectivo' && this.received !== '' ? toNumber(this.received) : null,
+
                 client_id: this.customer.id,
                 customer_name: this.customer.name || null,
                 customer_document: this.customer.document || null,
@@ -387,6 +507,7 @@ export default (config) => ({
             this.result = data;
             this.step = 'done';
             this.cart = [];
+            this.discountValue = '';
         } catch (e) {
             const errors = e.response?.data?.errors;
             this.error = errors ? Object.values(errors).flat()[0] : (e.response?.data?.message ?? 'No se pudo registrar la venta. Revisa tu conexión e intenta otra vez.');
