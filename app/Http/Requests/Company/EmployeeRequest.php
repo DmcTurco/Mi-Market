@@ -24,7 +24,7 @@ class EmployeeRequest extends FormRequest
 
         return [
             'name'     => 'required|string|max:150',
-            'email'    => ['required', 'email', 'max:255', Rule::unique('employees', 'email')->ignore($employee?->id)],
+            'email'    => ['required', 'email', 'max:255', Rule::unique('employees', 'email')->whereNull('deleted_at')->ignore($employee?->id)],
             'password' => [$employee ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'active'   => 'nullable|boolean',
         ];

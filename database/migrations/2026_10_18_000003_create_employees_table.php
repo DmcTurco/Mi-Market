@@ -15,14 +15,15 @@ return new class extends Migration
     {
         Schema::create('employees', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->index();            // empresa a la que pertenece
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email')->index();                             // único entre los no eliminados (lo valida la app)
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->boolean('active')->default(true);   // false = no puede iniciar sesión
+            $table->boolean('active')->default(true);                     // false = no puede iniciar sesión
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         // Primer empleado de la empresa de prueba. Correo y contraseña: INITIAL_EMPLOYEE_* del .env

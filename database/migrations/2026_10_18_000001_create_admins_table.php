@@ -16,11 +16,12 @@ return new class extends Migration
         Schema::create('admins', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email')->index();                             // único entre los no eliminados (lo valida la app)
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         // Admin del sistema. Correo y contraseña: INITIAL_ADMIN_* del .env

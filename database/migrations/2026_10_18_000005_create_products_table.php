@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('category_id')->nullable()->index();
             $table->string('barcode', 30)->nullable();                     // código de barras (lo lee la pistola)
             $table->string('name', 150);
             $table->string('unit', 10)->default('unidad');                 // unidad | kg | litro | paquete | caja (ver Product::UNITS)
@@ -27,6 +27,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
+            // Al eliminar un producto se libera su código (barcode = null), así este índice no estorba
             $table->unique(['company_id', 'barcode']);
             $table->index(['company_id', 'active', 'name']);
         });

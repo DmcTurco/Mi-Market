@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\BusinessException;
+use App\Models\AuditLog;
 use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\CreditPayment;
@@ -50,7 +51,7 @@ class CreditService
                 $left = round($left - $applied, 2);
             }
 
-            return CreditPayment::create([
+            $payment = CreditPayment::create([
                 'company_id'       => $client->company_id,
                 'client_id'        => $client->id,
                 'cash_register_id' => $register?->id,
@@ -58,6 +59,12 @@ class CreditService
                 'amount'           => $amount,
                 'payment_method'   => $method,
             ]);
+
+            AuditLog::record('credit.payment',
+                'Cobró ' . Qty::money($amount) . " de fiado a {$client->name} (" . (\App\Models\Sale::PAYMENT_METHODS[$method] ?? $method) . '). Debía ' . Qty::money($debt) . ', queda ' . Qty::money($debt - $amount),
+                $client, ['monto' => $amount, 'debía' => $debt, 'queda' => round($debt - $amount, 2)]);
+
+            return $payment;
         });
     }
 }

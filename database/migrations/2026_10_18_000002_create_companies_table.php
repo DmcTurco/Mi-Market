@@ -16,10 +16,10 @@ return new class extends Migration
         Schema::create('companies', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('ruc', 11)->nullable()->unique();
+            $table->string('ruc', 11)->nullable()->index();               // únicos entre los no eliminados (lo valida la app)
             $table->string('address', 200)->nullable();
             $table->string('phone', 30)->nullable();
-            $table->string('email')->unique();
+            $table->string('email')->index();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
 
@@ -31,6 +31,7 @@ return new class extends Migration
 
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         // Empresa de prueba (id = 1). Correo y contraseña: INITIAL_COMPANY_* del .env

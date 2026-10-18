@@ -26,10 +26,10 @@ class CompanyRequest extends FormRequest
 
         return [
             'name'     => 'required|string|max:150',
-            'ruc'      => ['nullable', 'digits:11', Rule::unique('companies', 'ruc')->ignore($company?->id)],
+            'ruc'      => ['nullable', 'digits:11', Rule::unique('companies', 'ruc')->whereNull('deleted_at')->ignore($company?->id)],
             'address'  => 'nullable|string|max:200',
             'phone'    => 'nullable|string|max:30',
-            'email'    => ['required', 'email', 'max:255', Rule::unique('companies', 'email')->ignore($company?->id)],
+            'email'    => ['required', 'email', 'max:255', Rule::unique('companies', 'email')->whereNull('deleted_at')->ignore($company?->id)],
             'password' => [$company ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
         ];
     }

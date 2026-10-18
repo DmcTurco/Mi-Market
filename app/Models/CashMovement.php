@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CashMovement extends Model
 {
+    use SoftDeletes;
+
     const INCOME  = 'income';
     const EXPENSE = 'expense';
 
@@ -31,12 +34,12 @@ class CashMovement extends Model
 
     public function cashRegister(): BelongsTo
     {
-        return $this->belongsTo(CashRegister::class);
+        return $this->belongsTo(CashRegister::class)->withTrashed();
     }
 
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 
     public function isExpense(): bool

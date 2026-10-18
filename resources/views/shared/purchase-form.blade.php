@@ -1,8 +1,12 @@
-{{-- Formulario "Llegó mercadería". Variables: $products, $action, $productsUrl (crear producto, o null), $canPayFromCash --}}
+{{-- Formulario "Llegó mercadería" (registrar o corregir).
+     Variables: $products, $action, $productsUrl (crear producto, o null), $canPayFromCash,
+     opcionales al editar: $purchase (el ingreso) y $items (sus filas tal como se registraron) --}}
+@php($editing = isset($purchase))
 <form method="POST" action="{{ $action }}"
-      x-data="purchaseForm(@js(['products' => $products, 'old' => old('items')]))" @submit="sending = true"
+      x-data="purchaseForm(@js(['products' => $products, 'old' => old('items', $items ?? null)]))" @submit="sending = true"
       class="space-y-4">
     @csrf
+    @if($editing) @method('PUT') @endif
 
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
         <label class="block text-sm font-medium text-slate-700 mb-2">1. Busca el producto que llegó</label>
@@ -87,7 +91,7 @@
 
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
         <x-field label="3. ¿Quién la trajo? (opcional)" name="supplier">
-            <x-input name="supplier" placeholder="Ej. Distribuidora Lima, Don Pedro..." maxlength="150" />
+            <x-input name="supplier" :value="$purchase->supplier ?? null" placeholder="Ej. Distribuidora Lima, Don Pedro..." maxlength="150" />
         </x-field>
 
         @if($canPayFromCash)
@@ -102,7 +106,7 @@
 
         <button type="submit" :disabled="!items.length || sending"
                 class="w-full py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white text-lg font-bold rounded-xl">
-            <i class="fas fa-check"></i> Guardar y subir el stock
+            <i class="fas fa-check"></i> {{ $editing ? 'Guardar corrección' : 'Guardar y subir el stock' }}
         </button>
     </div>
 </form>

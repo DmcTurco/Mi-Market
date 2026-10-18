@@ -14,21 +14,22 @@ return new class extends Migration
         // Correlativo de cada tipo de comprobante por empresa: T001-00000001, B001-..., F001-...
         Schema::create('document_series', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
             $table->string('voucher_type', 10);                           // ticket | boleta | factura
             $table->string('series', 4);
             $table->unsignedBigInteger('last_number')->default(0);
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['company_id', 'voucher_type']);
         });
 
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('cash_register_id')->constrained()->restrictOnDelete();
-            $table->foreignId('employee_id')->constrained()->restrictOnDelete();
-            $table->foreignId('client_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('cash_register_id')->index();
+            $table->unsignedBigInteger('employee_id')->index();           // quién vendió
+            $table->unsignedBigInteger('client_id')->nullable()->index();
 
             $table->string('voucher_type', 10);                           // ticket | boleta | factura
             $table->string('series', 4);
@@ -66,6 +67,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('sunat_attempts')->default(0);
             $table->timestamp('sunat_sent_at')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['company_id', 'series', 'number']);
             $table->index(['company_id', 'created_at']);
@@ -74,10 +76,9 @@ return new class extends Migration
 
         Schema::create('sale_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('sale_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('product_id')->constrained()->restrictOnDelete();
-            $table->foreignId('presentation_id')->nullable()                  // caja, media caja... (null = suelto)
-                ->constrained('product_presentations')->nullOnDelete();
+            $table->unsignedBigInteger('sale_id')->index();
+            $table->unsignedBigInteger('product_id')->index();
+            $table->unsignedBigInteger('presentation_id')->nullable()->index(); // caja, media caja... (null = suelto)
             $table->string('product_name', 150);                          // incluye la presentación: "Cerveza (Caja x12)"
             $table->string('unit', 10);
             $table->decimal('quantity', 12, 3);
@@ -90,18 +91,20 @@ return new class extends Migration
             $table->decimal('base', 10, 2);                               // total sin IGV
             $table->decimal('igv', 10, 2)->default(0);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         // Abonos del fiado: el cliente paga parte o toda su deuda
         Schema::create('credit_payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('client_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('cash_register_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('employee_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('client_id')->index();
+            $table->unsignedBigInteger('cash_register_id')->nullable()->index(); // null = lo cobró la empresa (sin caja)
+            $table->unsignedBigInteger('employee_id')->nullable()->index();      // quién cobró
             $table->decimal('amount', 10, 2);
             $table->string('payment_method', 10);                         // efectivo | yape | plin | tarjeta
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
 
     /** Unidades de venta: [nombre para el usuario, código SUNAT, ¿se vende en fracciones?] */
     const UNITS = [
@@ -59,12 +60,12 @@ class Product extends Model
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class)->withTrashed();
     }
 
     public function stockMovements(): HasMany
@@ -140,5 +141,13 @@ class Product extends Model
                 'barcode' => $p->barcode,
             ])->values()->all(),
         ];
+    }
+
+    /** El stock no: tiene su propio historial (stock_movements) */
+    protected array $auditIgnore = ['stock'];
+
+    public function auditName(): string
+    {
+        return 'el producto';
     }
 }

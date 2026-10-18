@@ -14,14 +14,16 @@ return new class extends Migration
     {
         Schema::create('product_presentations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('product_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('product_id')->index();
             $table->string('name', 50);                                   // "Caja", "Media caja", "Six pack"
             $table->decimal('units', 12, 3);                              // cuántas unidades base trae (12, 6...)
             $table->decimal('price', 10, 2);                              // precio de la presentación (suele ser menor que units × precio)
             $table->string('barcode', 30)->nullable();                    // código de la caja (distinto al de la botella)
             $table->timestamps();
+            $table->softDeletes();
 
+            // Al eliminarla se libera su código (barcode = null)
             $table->unique(['company_id', 'barcode']);
         });
     }

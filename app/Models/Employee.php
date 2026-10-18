@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
  */
 class Employee extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use Auditable, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -40,7 +42,7 @@ class Employee extends Authenticatable
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     public function cashRegisters(): HasMany
@@ -52,5 +54,10 @@ class Employee extends Authenticatable
     public function openCashRegister(): ?CashRegister
     {
         return $this->cashRegisters()->open()->latest('opened_at')->first();
+    }
+
+    public function auditName(): string
+    {
+        return 'al empleado';
     }
 }

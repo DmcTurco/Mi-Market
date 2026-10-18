@@ -41,8 +41,34 @@ class PurchaseController extends Controller
     public function show(Purchase $purchase)
     {
         return $this->showPurchase($purchase, 'company.pages.purchases.show', [
+            'editUrl' => route('company.purchases.edit', $purchase),
             'voidUrl' => route('company.purchases.void', $purchase),
         ]);
+    }
+
+    /** Corregir un ingreso (cantidades, costos, proveedor) */
+    public function edit(Purchase $purchase)
+    {
+        $this->ensureOwned($purchase);
+        abort_if($purchase->isVoided(), 404);
+        $purchase->load('items');
+
+        return view('company.pages.purchases.edit', [
+            'purchase' => $purchase,
+            'products' => $this->purchaseProducts(),
+            'items'    => $this->purchaseFormItems($purchase),
+        ]);
+    }
+
+    public function update(Request $request, Purchase $purchase, PurchaseService $service)
+    {
+        $this->ensureOwned($purchase);
+        $data = $this->validatePurchase($request);
+
+        $service->update($purchase, $data['items'], $data['supplier'] ?? null);
+
+        return redirect()->route('company.purchases.show', $purchase)
+            ->with('success', 'Ingreso corregido. El stock ya se ajustó.');
     }
 
     /** Anular un ingreso registrado por error */

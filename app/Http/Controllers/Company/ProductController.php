@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Concerns\ScopedToCompany;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\ProductRequest;
+use App\Models\AuditLog;
 use App\Models\Product;
+use App\Support\Qty;
 use App\Models\ProductPresentation;
 use App\Models\StockMovement;
 use App\Services\StockService;
@@ -85,9 +87,14 @@ class ProductController extends Controller
             $product->update($request->productData());
             $this->syncPresentations($product, $request->input('presentations', []));
 
-            $difference = round((float) $request->input('stock', $product->stock) - (float) $product->fresh()->stock, 3);
+            $before     = (float) $product->fresh()->stock;
+            $difference = round((float) $request->input('stock', $before) - $before, 3);
             if ($difference != 0) {
-                $stock->move($product->id, $difference, StockMovement::ADJUSTMENT, null, 'Corrección manual');
+                $after = $stock->move($product->id, $difference, StockMovement::ADJUSTMENT, null, 'Corrección manual');
+
+                AuditLog::record('stock.adjust',
+                    "Corrigió a mano el stock de «{$product->name}»: " . Qty::format($before) . ' → ' . Qty::format($after),
+                    $product, ['antes' => $before, 'después' => $after]);
             }
         });
 
@@ -139,7 +146,10 @@ class ProductController extends Controller
             $keep[] = $existing->id;
         }
 
-        ProductPresentation::where('product_id', $product->id)->whereNotIn('id', $keep)->delete();
+        // Las que se quitaron: se libera su código de barras y se eliminan (borrado suave)
+        $removed = ProductPresentation::where('product_id', $product->id)->whereNotIn('id', $keep);
+        (clone $removed)->update(['barcode' => null]);
+        $removed->get()->each->delete();
     }
 
     /** Historial de movimientos de stock del producto */

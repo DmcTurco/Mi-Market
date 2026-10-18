@@ -57,9 +57,20 @@ trait HandlesPurchases
     protected function showPurchase(Purchase $purchase, string $view, array $data = [])
     {
         $this->ensureOwned($purchase);
-        $purchase->load('items.product', 'employee');
+        $purchase->load('items.product', 'items.presentation', 'employee');
 
         return view($view, compact('purchase') + $data);
+    }
+
+    /** Filas del formulario tal como se registraron ("2 cajas a S/ 60"), para editarlas */
+    protected function purchaseFormItems(Purchase $purchase): array
+    {
+        return $purchase->items->map(fn ($item) => [
+            'product_id'      => $item->product_id,
+            'presentation_id' => $item->presentation_id ?? '',
+            'quantity'        => \App\Support\Qty::format($item->entered_quantity),
+            'unit_cost'       => number_format((float) $item->entered_cost, 2, '.', ''),
+        ])->all();
     }
 
     protected function validateVoid(Request $request): string

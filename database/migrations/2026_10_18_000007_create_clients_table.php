@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
             $table->string('name', 150);                                  // nombre completo o razón social
             $table->string('document_type', 3)->nullable();               // dni | ruc | null (sin documento)
             $table->string('document_number', 15)->nullable();
             $table->string('phone', 20)->nullable();
             $table->string('address', 200)->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['company_id', 'name']);
             $table->index(['company_id', 'document_number']);

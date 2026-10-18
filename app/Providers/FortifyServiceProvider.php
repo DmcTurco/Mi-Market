@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\LogoutResponse;
 use App\Models\Admin;
+use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Employee;
 use App\MyApp;
@@ -71,13 +72,21 @@ class FortifyServiceProvider extends ServiceProvider
 
             $email = strtolower(trim($request->input(Fortify::username(), '')));
             $user  = $modelClass::whereRaw('LOWER(email) = ?', [$email])->first();
+            $panel = ['admin' => 'admin', 'company' => 'empresa', 'employee' => 'empleado'][config('fortify.guard')];
 
             if (!$user || !Hash::check($request->password, $user->password)) {
+                // Quien lo intentó es desconocido: se guarda el correo usado y, si existe, a qué cuenta apuntaba
+                AuditLog::record('login.failed',
+                    "Intento fallido de entrar al panel de {$panel} con el correo {$email}" . ($user ? ' (contraseña incorrecta)' : ' (correo no registrado)'),
+                    $user, ['correo' => $email], actor: null,
+                    companyId: $user instanceof Employee ? $user->company_id : ($user instanceof Company ? $user->id : null));
+
                 return null;
             }
 
             // Un empleado dado de baja por su empresa ya no puede entrar
             if ($user instanceof Employee && !$user->active) {
+                AuditLog::record('login.failed', "Intento de entrar con la cuenta desactivada de {$user->name}", $user, ['correo' => $email], actor: null);
                 throw ValidationException::withMessages([
                     Fortify::username() => 'Tu cuenta está desactivada. Consulta con el encargado de la tienda.',
                 ]);

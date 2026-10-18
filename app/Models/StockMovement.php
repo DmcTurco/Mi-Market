@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,10 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class StockMovement extends Model
 {
+    use SoftDeletes;
+
     const SALE       = 'sale';
     const SALE_VOID  = 'sale_void';
     const PURCHASE      = 'purchase';
     const PURCHASE_VOID = 'purchase_void';
+    const PURCHASE_EDIT = 'purchase_edit';
     const ADJUSTMENT    = 'adjustment';
 
     const REASONS = [
@@ -21,6 +25,7 @@ class StockMovement extends Model
         self::SALE_VOID     => 'Venta anulada',
         self::PURCHASE      => 'Llegó mercadería',
         self::PURCHASE_VOID => 'Mercadería anulada',
+        self::PURCHASE_EDIT => 'Mercadería corregida',
         self::ADJUSTMENT    => 'Corrección de stock',
     ];
 

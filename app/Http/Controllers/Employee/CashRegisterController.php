@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\CashRegister;
+use App\Support\Qty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -37,11 +39,13 @@ class CashRegisterController extends Controller
                 return;
             }
 
-            $employee->cashRegisters()->create([
+            $register = $employee->cashRegisters()->create([
                 'company_id'     => $employee->company_id,
                 'opening_amount' => $data['opening_amount'],
                 'opened_at'      => now(),
             ]);
+
+            AuditLog::record('cash.open', 'Abrió caja con ' . Qty::money($data['opening_amount']), $register, ['apertura' => (float) $data['opening_amount']]);
         });
 
         return redirect()->route('employee.home')
@@ -81,6 +85,12 @@ class CashRegisterController extends Controller
             'notes'           => $data['notes'] ?? null,
             'closed_at'       => now(),
         ]);
+
+        $difference = round($counted - $expected, 2);
+        AuditLog::record('cash.close',
+            'Cerró caja: debía haber ' . Qty::money($expected) . ', contó ' . Qty::money($counted)
+                . (abs($difference) < 0.005 ? ' (cuadra)' : ($difference > 0 ? ' (sobran ' . Qty::money($difference) . ')' : ' (faltan ' . Qty::money(abs($difference)) . ')')),
+            $register, ['esperado' => $expected, 'contado' => $counted, 'diferencia' => $difference, 'nota' => $data['notes'] ?? null]);
 
         return redirect()->route('employee.home')
             ->with('success', 'Caja cerrada. ¡Buen trabajo!');

@@ -1,4 +1,11 @@
-{{-- Detalle de un ingreso de mercadería. Variables: $purchase, $voidUrl (null = no puede anularlo) --}}
+{{-- Detalle de un ingreso de mercadería. Variables: $purchase, $editUrl y $voidUrl (null = no puede corregirlo) --}}
+@if(($editUrl ?? null) && !$purchase->isVoided())
+    <a href="{{ $editUrl }}"
+       class="inline-flex items-center gap-2 mb-4 px-5 py-3 bg-white border-2 border-brand-600 text-brand-700 hover:bg-brand-50 font-semibold rounded-xl">
+        <i class="fas fa-pen"></i> Corregir cantidades o precios
+    </a>
+@endif
+
 @if($purchase->isVoided())
     <div class="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
         <p class="font-bold"><i class="fas fa-ban"></i> Ingreso anulado</p>
@@ -26,8 +33,22 @@
             @foreach($purchase->items as $item)
                 <tr>
                     <td class="px-5 py-3 font-medium">{{ $item->product->name }}</td>
-                    <td class="px-4 py-3 text-right">{{ qty($item->quantity) }}</td>
-                    <td class="px-4 py-3 text-right text-slate-500">{{ money($item->unit_cost) }}</td>
+                    <td class="px-4 py-3 text-right">
+                        @if($item->presentation)
+                            {{ qty($item->entered_quantity) }} {{ mb_strtolower($item->presentation->name) }}
+                            <span class="block text-xs text-slate-400">= {{ qty($item->quantity) }} unidades</span>
+                        @else
+                            {{ qty($item->quantity) }}
+                        @endif
+                    </td>
+                    <td class="px-4 py-3 text-right text-slate-500">
+                        @if($item->presentation)
+                            {{ money($item->entered_cost) }} c/{{ mb_strtolower($item->presentation->name) }}
+                            <span class="block text-xs text-slate-400">{{ money($item->unit_cost) }} c/u</span>
+                        @else
+                            {{ money($item->unit_cost) }}
+                        @endif
+                    </td>
                     <td class="px-5 py-3 text-right font-semibold">{{ money($item->total) }}</td>
                 </tr>
             @endforeach
@@ -41,14 +62,14 @@
     </table>
 </div>
 
-{{-- ¿Te equivocaste? Se anula y se vuelve a registrar bien --}}
+{{-- La mercadería nunca llegó: se anula todo el ingreso --}}
 @if(($voidUrl ?? null) && !$purchase->isVoided())
     <form method="POST" action="{{ $voidUrl }}" x-data="{ open: {{ $errors->has('reason') ? 'true' : 'false' }}, sending: false }" @submit="sending = true"
           class="mt-4 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         @csrf
         <button type="button" x-show="!open" @click="open = true; $nextTick(() => $refs.reason.focus())"
                 class="px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 font-semibold">
-            <i class="fas fa-ban"></i> ¿Te equivocaste? Anular este ingreso
+            <i class="fas fa-ban"></i> ¿La mercadería no llegó? Anular este ingreso
         </button>
         <div x-show="open" x-cloak class="space-y-3">
             <p class="text-sm text-slate-600">

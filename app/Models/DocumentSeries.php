@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class DocumentSeries extends Model
 {
+    use SoftDeletes;
+
     const DEFAULT_SERIES = [
         Sale::TICKET  => 'T001',
         Sale::BOLETA  => 'B001',

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Client extends Model
 {
+    use Auditable, SoftDeletes;
+
     protected $fillable = [
         'company_id',
         'name',
@@ -23,7 +27,7 @@ class Client extends Model
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     public function sales(): HasMany
@@ -65,5 +69,10 @@ class Client extends Model
     public function debt(): float
     {
         return round((float) $this->pendingSales()->sum('credit_balance'), 2);
+    }
+
+    public function auditName(): string
+    {
+        return 'al cliente';
     }
 }

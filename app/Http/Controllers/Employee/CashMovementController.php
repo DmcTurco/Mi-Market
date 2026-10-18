@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\CashMovement;
+use App\Support\Qty;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -34,10 +36,15 @@ class CashMovementController extends Controller
 
         $register = $request->attributes->get('cash_register');
 
-        $register->movements()->create($data + [
+        $movement = $register->movements()->create($data + [
             'company_id'  => $register->company_id,
             'employee_id' => $register->employee_id,
         ]);
+
+        $isExpense = $data['type'] === CashMovement::EXPENSE;
+        AuditLog::record($isExpense ? 'cash.expense' : 'cash.income',
+            ($isExpense ? 'Sacó ' : 'Ingresó ') . Qty::money($data['amount']) . ($isExpense ? ' de' : ' a') . " la caja: {$data['concept']}",
+            $movement, ['monto' => (float) $data['amount'], 'concepto' => $data['concept']]);
 
         return redirect()->route('employee.cash.movements')
             ->with('success', $data['type'] === CashMovement::EXPENSE ? 'Gasto registrado.' : 'Ingreso registrado.');

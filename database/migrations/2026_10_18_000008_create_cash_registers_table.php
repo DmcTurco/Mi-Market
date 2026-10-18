@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('cash_registers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('employee_id')->constrained()->restrictOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('employee_id')->index();           // quién abrió la caja
             $table->decimal('opening_amount', 10, 2)->default(0);         // con cuánto abrió
             $table->decimal('expected_amount', 10, 2)->nullable();        // efectivo que debía haber al cerrar
             $table->decimal('closing_amount', 10, 2)->nullable();         // efectivo que contó al cerrar
@@ -23,6 +23,7 @@ return new class extends Migration
             $table->timestamp('opened_at');
             $table->timestamp('closed_at')->nullable();                   // null = abierta
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['employee_id', 'closed_at']);
         });
@@ -30,13 +31,14 @@ return new class extends Migration
         // Gastos (pagó el flete) y otros ingresos (le dieron sencillo) en efectivo de la caja
         Schema::create('cash_movements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('cash_register_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('employee_id')->constrained()->restrictOnDelete();
+            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('cash_register_id')->index();
+            $table->unsignedBigInteger('employee_id')->index();           // quién lo registró
             $table->string('type', 10);                                   // income | expense
             $table->string('concept', 150);
             $table->decimal('amount', 10, 2);                             // siempre positivo
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\BusinessException;
+use App\Models\AuditLog;
 use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\Company;
@@ -163,6 +164,16 @@ class SaleService
                 $this->stock->move($product->id, -round($line['quantity'] * $line['units'], 3), StockMovement::SALE, $sale->id, $sale->voucherNumber());
             }
 
+            AuditLog::record('sale.created',
+                "Vendió {$sale->voucherNumber()} por " . Qty::money($total) . " ({$sale->paymentLabel()})",
+                $sale, ['total' => $total, 'pago' => $sale->payment_method, 'productos' => count($lines)]);
+
+            if ((float) $sale->discount_amount > 0) {
+                AuditLog::record('sale.discount',
+                    "Descontó " . Qty::money($sale->discount_amount) . " en {$sale->voucherNumber()} (precio normal " . Qty::money($gross) . ' → ' . Qty::money($total) . ')',
+                    $sale, ['normal' => $gross, 'cobrado' => $total, 'descuento' => (float) $sale->discount_amount]);
+            }
+
             return $sale;
         });
     }
@@ -203,6 +214,10 @@ class SaleService
                 // Boleta/factura que aún no se envió: ya no se informa a SUNAT
                 'sunat_status'   => $sale->sunat_status === Sale::SUNAT_PENDING ? Sale::SUNAT_NOT_APPLICABLE : $sale->sunat_status,
             ]);
+
+            AuditLog::record('sale.void',
+                "Anuló la venta {$sale->voucherNumber()} de " . Qty::money($sale->total) . ": {$reason}",
+                $sale, ['total' => (float) $sale->total, 'motivo' => $reason, 'vendió' => $sale->employee?->name]);
         });
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ProductPresentation extends Model
 {
+    use Auditable, SoftDeletes;
+
     protected $fillable = [
         'company_id',
         'product_id',
@@ -29,12 +33,22 @@ class ProductPresentation extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 
     /** "Caja x12" */
     public function label(): string
     {
         return $this->name . ' x' . \App\Support\Qty::format($this->units);
+    }
+
+    public function auditName(): string
+    {
+        return 'la presentación';
+    }
+
+    public function auditLabel(): string
+    {
+        return ($this->product?->name ?? 'Producto') . ' (' . $this->label() . ')';
     }
 }
