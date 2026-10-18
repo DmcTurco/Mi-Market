@@ -22,6 +22,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name') }} — @yield('title', 'Inicio')</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    {{-- Menú plegado o no: se aplica ANTES de pintar para que al cambiar de página nada se mueva --}}
+    <script>
+        try { if (localStorage.getItem('sidebar-collapsed') === '1') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="panel-{{ $panel }} bg-slate-50 text-slate-800 antialiased app-shell overflow-hidden" x-data="panelLayout">
@@ -30,17 +34,18 @@
     <div x-show="sidebarOpen" x-cloak x-transition.opacity @click="sidebarOpen = false"
          class="fixed inset-0 bg-black/50 z-20 lg:hidden"></div>
 
-    {{-- Menú lateral --}}
-    <aside class="fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-200 flex flex-col
-                  -translate-x-full lg:translate-x-0 transition-all duration-300"
-           :class="{ 'max-lg:translate-x-0': sidebarOpen, 'lg:w-18': collapsed }">
+    {{-- Menú lateral. En móvil se desliza (única animación); en pantallas grandes está fijo.
+         El ancho plegado lo pone la clase sidebar-collapsed de <html> (ver resources/css/app.css). --}}
+    <aside id="sidebar"
+           class="fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-200 flex flex-col
+                  -translate-x-full lg:translate-x-0 max-lg:transition-transform max-lg:duration-300"
+           :class="{ 'max-lg:translate-x-0': sidebarOpen }">
 
-        <div class="flex items-center gap-3 h-16 px-5 border-b border-slate-200 shrink-0"
-             :class="{ 'lg:justify-center lg:px-0': collapsed }">
+        <div class="sidebar-brand flex items-center gap-3 h-16 px-5 border-b border-slate-200 shrink-0">
             <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center shrink-0">
                 <i class="fas {{ $current['icon'] }} text-white text-sm"></i>
             </div>
-            <div :class="{ 'lg:hidden': collapsed }">
+            <div class="nav-label">
                 <p class="font-bold text-slate-800 text-sm leading-none">{{ config('app.name') }}</p>
                 <p class="text-xs text-slate-400 mt-0.5">{{ $current['label'] }}</p>
             </div>
@@ -54,18 +59,16 @@
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" title="Cerrar sesión"
-                        class="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-                        :class="{ 'lg:justify-center lg:px-0': collapsed }">
+                        class="nav-item flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors">
                     <i class="fas fa-right-from-bracket w-4 text-center text-sm"></i>
-                    <span :class="{ 'lg:hidden': collapsed }">Cerrar sesión</span>
+                    <span class="nav-label">Cerrar sesión</span>
                 </button>
             </form>
         </div>
     </aside>
 
     {{-- Contenido --}}
-    <div class="flex flex-col app-shell transition-all duration-300"
-         :class="collapsed ? 'lg:ml-18' : 'lg:ml-64'">
+    <div id="app-content" class="flex flex-col app-shell lg:ml-64">
 
         <header class="bg-white border-b border-slate-200 h-16 flex items-center px-4 md:px-6 gap-3 shrink-0">
             <button type="button" @click="sidebarOpen = true" title="Abrir menú"

@@ -20,7 +20,8 @@ class PurchaseService
     public function __construct(private StockService $stock) {}
 
     /**
-     * @param  array<int, array{product_id: int, quantity: float, unit_cost: ?float}>  $items
+     * @param  array<int, array{product_id: int, presentation_id?: ?int, quantity: float, unit_cost: ?float}>  $items
+     *         quantity y unit_cost en la presentación elegida (cajas y costo por caja) o en unidades si no hay
      *
      * @throws BusinessException
      */
@@ -39,16 +40,27 @@ class PurchaseService
 
             $total = 0.0;
             foreach ($items as $item) {
-                $product = Product::where('company_id', $companyId)->findOrFail($item['product_id']);
+                $product = Product::where('company_id', $companyId)->with('presentations')->findOrFail($item['product_id']);
 
-                $quantity = round((float) $item['quantity'], 3);
-                if ($quantity <= 0) {
+                $count = round((float) $item['quantity'], 3);
+                if ($count <= 0) {
                     throw new BusinessException("Escribe cuántos llegaron de «{$product->name}».");
                 }
 
+                // Llegó por cajas: 3 cajas de 12 = 36 unidades; el costo escrito es por caja
+                $units = 1.0;
+                if (!empty($item['presentation_id'])) {
+                    $presentation = $product->presentations->firstWhere('id', (int) $item['presentation_id'])
+                        ?? throw new BusinessException("La presentación de «{$product->name}» ya no existe. Vuelve a elegirla.");
+                    $units = (float) $presentation->units;
+                }
+                $quantity = round($count * $units, 3);
+
                 // Sin costo: se asume el último costo conocido del producto
-                $unitCost  = isset($item['unit_cost']) && $item['unit_cost'] !== '' ? round((float) $item['unit_cost'], 2) : (float) $product->purchase_price;
-                $lineTotal = round($quantity * $unitCost, 2);
+                $lineTotal = isset($item['unit_cost']) && $item['unit_cost'] !== ''
+                    ? round($count * (float) $item['unit_cost'], 2)
+                    : round($quantity * (float) $product->purchase_price, 2);
+                $unitCost  = round($lineTotal / $quantity, 2);
                 $total    += $lineTotal;
 
                 $purchase->items()->create([

@@ -8,22 +8,15 @@ Alpine.data('purchaseForm', purchaseForm);
 
 /**
  * Estructura de los paneles: menú lateral deslizable en móvil y plegable en pantallas grandes.
- * El estado plegado se recuerda en este navegador.
+ * El plegado es la clase sidebar-collapsed de <html> (CSS puro, ver app.css) y se recuerda en este navegador.
  */
 Alpine.data('panelLayout', () => ({
     sidebarOpen: false,
-    collapsed: false,
-
-    init() {
-        try {
-            this.collapsed = localStorage.getItem('sidebar-collapsed') === '1';
-        } catch (e) {}
-    },
 
     toggleCollapsed() {
-        this.collapsed = !this.collapsed;
+        const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
         try {
-            localStorage.setItem('sidebar-collapsed', this.collapsed ? '1' : '0');
+            localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
         } catch (e) {}
     },
 }));

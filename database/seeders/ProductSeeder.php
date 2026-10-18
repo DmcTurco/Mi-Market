@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Productos de ejemplo de una bodega para probar el punto de venta.
- * Incluye productos por kilo, algunos casi agotados (aviso de stock bajo), uno sin stock y uno exonerado.
+ * Incluye productos por kilo, por caja/media caja/paquete, algunos casi agotados (aviso de stock bajo),
+ * uno sin stock y uno exonerado.
  * Se puede correr varias veces: no duplica productos.
  */
 class ProductSeeder extends Seeder
@@ -34,6 +35,8 @@ class ProductSeeder extends Seeder
             ['Bebidas',   'Coca Cola 1.5L',                '7750182000246', 'unidad', 4.60, 5.80, 20, 6,  '10'],
             ['Bebidas',   'Agua San Luis 625ml',           '7750182000369', 'unidad', 0.90, 1.50, 36, 12, '10'],
             ['Bebidas',   'Cerveza Pilsen 630ml',          '7750182000482', 'unidad', 5.00, 6.50, 0,  12, '10'],
+            ['Bebidas',   'Cerveza Cristal 650ml',         '7750182000529', 'unidad', 5.20, 6.80, 60, 12, '10'],
+            ['Abarrotes', 'Arroz a granel',                null,            'kg',     3.40, 4.20, 50, 10, '10'],
             ['Lácteos',   'Leche Gloria tarro 400g',       '7751271051016', 'unidad', 3.60, 4.20, 60, 24, '10'],
             ['Lácteos',   'Yogurt Gloria fresa 1L',        '7751271061015', 'unidad', 5.40, 6.80, 8,  4,  '10'],
             ['Lácteos',   'Queso fresco',                  null,            'kg',     16.00, 20.00, 5, 1,  '10'],
@@ -69,6 +72,25 @@ class ProductSeeder extends Seeder
                 if ($product->wasRecentlyCreated && $initial > 0) {
                     $stock->move($product->id, $initial, StockMovement::ADJUSTMENT, null, 'Stock inicial');
                 }
+            }
+
+            // Otras formas de vender: [producto, nombre, unidades, precio, código de barras]
+            $presentations = [
+                ['Cerveza Cristal 650ml', 'Media caja', 6,  38.00, null],
+                ['Cerveza Cristal 650ml', 'Caja',       12, 72.00, '7750182000536'],
+                ['Cerveza Pilsen 630ml',  'Caja',       12, 70.00, '7750182000499'],
+                ['Inca Kola 500ml',       'Paquete',    6,  13.50, null],
+                ['Coca Cola 1.5L',        'Paquete',    6,  32.00, null],
+                ['Agua San Luis 625ml',   'Paquete',    15, 19.50, null],
+                ['Galletas Soda Field',   'Paquete',    6,  5.50,  null],
+            ];
+
+            foreach ($presentations as [$productName, $name, $units, $price, $barcode]) {
+                $product = $company->products()->where('name', $productName)->first();
+                $product?->presentations()->firstOrCreate(
+                    ['name' => $name],
+                    ['company_id' => $company->id, 'units' => $units, 'price' => $price, 'barcode' => $barcode],
+                );
             }
         });
     }

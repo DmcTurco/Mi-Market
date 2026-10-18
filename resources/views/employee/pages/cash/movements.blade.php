@@ -3,7 +3,7 @@
 @section('title', 'Gastos e ingresos')
 
 @section('content')
-<div class="max-w-4xl grid lg:grid-cols-2 gap-5">
+<div class="grid lg:grid-cols-2 gap-5">
     <form method="POST" action="{{ route('employee.cash.movements.store') }}"
           x-data="{ type: @js(old('type', 'expense')), sending: false }" @submit="sending = true"
           class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 self-start">

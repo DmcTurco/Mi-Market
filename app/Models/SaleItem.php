@@ -10,9 +10,11 @@ class SaleItem extends Model
     protected $fillable = [
         'sale_id',
         'product_id',
+        'presentation_id',
         'product_name',
         'unit',
         'quantity',
+        'units_per_item',
         'unit_price',
         'total',
         'igv_affectation',
@@ -23,8 +25,9 @@ class SaleItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity'   => 'decimal:3',
-            'unit_price' => 'decimal:2',
+            'quantity'       => 'decimal:3',
+            'units_per_item' => 'decimal:3',
+            'unit_price'     => 'decimal:2',
             'total'      => 'decimal:2',
             'base'       => 'decimal:2',
             'igv'        => 'decimal:2',

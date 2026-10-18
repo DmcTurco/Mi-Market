@@ -9,7 +9,7 @@
     </a>
 </x-page-header>
 
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden max-w-3xl">
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     @forelse($sales as $sale)
         <a href="{{ route('employee.sales.show', $sale) }}"
            class="px-5 py-4 border-b border-slate-100 last:border-0 flex items-center gap-4 hover:bg-slate-50 {{ $sale->isVoided() ? 'opacity-60' : '' }}">

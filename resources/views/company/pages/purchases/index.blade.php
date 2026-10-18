@@ -10,7 +10,7 @@
     </a>
 </x-page-header>
 
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden max-w-4xl">
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     @forelse($purchases as $purchase)
         <a href="{{ route('company.purchases.show', $purchase) }}" class="px-5 py-4 border-b border-slate-100 last:border-0 flex items-center gap-4 hover:bg-slate-50">
             <div class="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center shrink-0">
@@ -32,6 +32,6 @@
 </div>
 
 @if($purchases->hasPages())
-    <div class="mt-4 max-w-4xl">{{ $purchases->links() }}</div>
+    <div class="mt-4">{{ $purchases->links() }}</div>
 @endif
 @endsection

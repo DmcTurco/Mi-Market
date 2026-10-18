@@ -63,6 +63,9 @@
                                 <p class="text-xs text-slate-400">
                                     {{ $product->unitLabel() }}{{ $product->barcode ? ' · ' . $product->barcode : '' }}{{ $product->active ? '' : ' · no se vende' }}
                                 </p>
+                                @foreach($product->presentations as $presentation)
+                                    <span class="inline-block mt-1 mr-1 px-2 py-0.5 rounded bg-brand-50 text-brand-700 text-xs">{{ $presentation->label() }}: {{ money($presentation->price) }}</span>
+                                @endforeach
                             </td>
                             <td class="px-4 py-3 text-slate-500">{{ $product->category?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-right font-bold text-slate-800">{{ money($product->sale_price) }}</td>

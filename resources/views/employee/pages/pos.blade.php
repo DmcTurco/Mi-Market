@@ -18,7 +18,8 @@
      class="h-full flex flex-col lg:flex-row">
 
     {{-- ── Izquierda: buscar y elegir productos ─────────────────────────── --}}
-    <section class="flex-1 min-h-0 flex flex-col p-3 md:p-4 gap-3">
+    {{-- min-w-0: sin esto la fila de categorías (con scroll) empuja la pantalla hacia la derecha --}}
+    <section class="flex-1 min-w-0 min-h-0 flex flex-col p-3 md:p-4 gap-3">
         <form @submit.prevent="submitSearch()" class="relative shrink-0">
             <i class="fas fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl pointer-events-none"></i>
             <input type="text" x-ref="search" x-model="search" autocomplete="off"
@@ -50,13 +51,18 @@
 
         {{-- Productos --}}
         <div class="flex-1 min-h-0 overflow-y-auto">
-            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+            {{-- Tantas columnas como entren (mínimo 9.5rem cada tarjeta) --}}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-3">
                 <template x-for="product in results" :key="product.id">
                     <button type="button" @click="add(product)"
                             :class="product.stock <= 0 ? 'opacity-50' : 'hover:border-brand-500 hover:shadow-md'"
                             class="text-left bg-white rounded-xl border-2 border-slate-200 p-3 transition flex flex-col min-h-28">
                         <span class="text-sm font-semibold text-slate-800 leading-snug line-clamp-2" x-text="product.name"></span>
-                        <span class="mt-auto pt-2 text-xl font-bold text-brand-700" x-text="money(product.price)"></span>
+                        <span class="mt-auto pt-2 text-xl font-bold text-brand-700">
+                            <span x-text="money(product.price)"></span><span class="text-xs font-medium text-slate-400" x-show="product.fractional" x-text="' el ' + product.unit.toLowerCase()"></span>
+                        </span>
+                        <span class="text-xs text-brand-700" x-show="product.presentations.length"
+                              x-text="'También ' + product.presentations.map(p => p.name.toLowerCase()).join(', ')"></span>
                         <span class="text-xs" :class="product.stock <= 0 ? 'text-red-500 font-semibold' : 'text-slate-400'"
                               x-text="product.stock <= 0 ? 'Sin stock' : 'Quedan ' + qtyLabel(product.stock) + (product.fractional ? ' ' + product.unit.toLowerCase() : '')"></span>
                     </button>
@@ -72,7 +78,7 @@
     </section>
 
     {{-- ── Derecha: la venta actual ────────────────────────────────────── --}}
-    <aside class="lg:w-[420px] shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col max-h-[55%] lg:max-h-none">
+    <aside class="lg:w-80 xl:w-96 2xl:w-104 shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col max-h-[55%] lg:max-h-none">
         <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between shrink-0">
             <h2 class="font-bold text-slate-800">Venta actual</h2>
             <button type="button" x-show="cart.length" x-cloak
@@ -81,10 +87,13 @@
         </div>
 
         <div class="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
-            <template x-for="line in cart" :key="line.id">
+            <template x-for="line in cart" :key="line.key">
                 <div class="px-4 py-3">
                     <div class="flex items-start gap-2">
-                        <p class="flex-1 text-sm font-semibold text-slate-800 leading-snug" x-text="line.name"></p>
+                        <p class="flex-1 text-sm font-semibold text-slate-800 leading-snug">
+                            <span x-text="line.name"></span>
+                            <span x-show="line.detail" class="ml-1 px-1.5 py-0.5 rounded bg-brand-100 text-brand-700 text-xs font-bold" x-text="line.detail"></span>
+                        </p>
                         <button type="button" @click="remove(line)" title="Quitar" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600">
                             <i class="fas fa-xmark"></i>
                         </button>
@@ -128,6 +137,81 @@
             </button>
         </div>
     </aside>
+
+    {{-- ── ¿Cómo lo vende? (unidad, media caja, caja) ──────────────────── --}}
+    <div x-show="chooser" x-cloak x-transition.opacity @keydown.escape.window="chooser = null; focusSearch()"
+         class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-3">
+        <div @click.outside="chooser = null; focusSearch()" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+            <template x-if="chooser">
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <h3 class="text-xl font-bold text-slate-800" x-text="chooser.name"></h3>
+                        <button type="button" @click="chooser = null; focusSearch()" class="w-9 h-9 rounded-full text-slate-400 hover:bg-slate-100"><i class="fas fa-xmark"></i></button>
+                    </div>
+                    <p class="text-slate-500 mb-5">¿Cómo lo lleva? <span class="text-xs" x-text="'(quedan ' + qtyLabel(chooser.stock) + ')'"></span></p>
+                    <div class="grid gap-3">
+                        <button type="button" @click="choose(null)"
+                                class="flex items-center justify-between px-5 py-4 rounded-xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50">
+                            <span class="text-lg font-bold">Suelto <span class="text-sm font-normal text-slate-500">(1 unidad)</span></span>
+                            <span class="text-xl font-bold text-brand-700" x-text="money(chooser.price)"></span>
+                        </button>
+                        <template x-for="p in chooser.presentations" :key="p.id">
+                            <button type="button" @click="choose(p)" :disabled="p.units > chooser.stock"
+                                    class="flex items-center justify-between px-5 py-4 rounded-xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50 disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white">
+                                <span class="text-lg font-bold text-left">
+                                    <span x-text="p.name"></span>
+                                    <span class="text-sm font-normal text-slate-500" x-text="'(' + qtyLabel(p.units) + ' unidades)'"></span>
+                                    <span class="block text-xs font-normal text-red-500" x-show="p.units > chooser.stock">No alcanza el stock</span>
+                                </span>
+                                <span class="text-xl font-bold text-brand-700" x-text="money(p.price)"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    {{-- ── ¿Cuánto pesa? (kilo / litro) ────────────────────────────────── --}}
+    <div x-show="weigh" x-cloak x-transition.opacity @keydown.escape.window="weigh = null; focusSearch()"
+         class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-3">
+        <form @submit.prevent="confirmWeigh()" @click.outside="weigh = null; focusSearch()" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+            <template x-if="weigh">
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <h3 class="text-xl font-bold text-slate-800" x-text="weigh.name"></h3>
+                        <button type="button" @click="weigh = null; focusSearch()" class="w-9 h-9 rounded-full text-slate-400 hover:bg-slate-100"><i class="fas fa-xmark"></i></button>
+                    </div>
+                    <p class="text-slate-500 mb-5"><span x-text="money(weigh.price)"></span> el <span x-text="weigh.unit.toLowerCase()"></span></p>
+
+                    <label class="block text-sm font-medium text-slate-700 mb-2"><i class="fas fa-scale-balanced"></i> ¿Cuánto marcó la balanza?</label>
+                    <div class="relative">
+                        <input type="text" inputmode="decimal" x-ref="weighQty" x-model="weighQty" @input="weighAmount = ''" placeholder="0.000"
+                               class="w-full pl-4 pr-20 py-4 text-3xl font-bold border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-slate-400" x-text="weigh.unit === 'Kilo' ? 'kg' : 'L'"></span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 mt-3">
+                        <template x-for="quick in [{ label: '¼', value: 0.25 }, { label: '½', value: 0.5 }, { label: '¾', value: 0.75 }, { label: '1', value: 1 }]" :key="quick.value">
+                            <button type="button" @click="weighQty = String(quick.value); weighAmount = ''"
+                                    class="py-3 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-lg" x-text="quick.label + (weigh.unit === 'Kilo' ? ' kg' : ' L')"></button>
+                        </template>
+                    </div>
+
+                    <div class="flex items-center gap-3 my-4 text-sm text-slate-400"><span class="flex-1 border-t"></span>o el cliente pide por soles<span class="flex-1 border-t"></span></div>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Por S/</span>
+                        <input type="text" inputmode="decimal" x-model="weighAmount" @input="weighByAmount()" placeholder="2.00"
+                               class="w-full pl-20 pr-4 py-3 text-xl font-bold border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
+                    </div>
+
+                    <button type="submit" :disabled="!(Number(weighQty) > 0)"
+                            class="mt-5 w-full py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white text-lg font-bold rounded-xl">
+                        Agregar <span x-show="Number(weighQty) > 0" x-text="qtyLabel(weighQty) + (weigh.unit === 'Kilo' ? ' kg' : ' L') + ' = ' + money(weighTotal)"></span>
+                    </button>
+                </div>
+            </template>
+        </form>
+    </div>
 
     {{-- ── Cobro: paso a paso ─────────────────────────────────────────── --}}
     <div x-show="checkout" x-cloak x-transition.opacity @keydown.escape.window="step !== 'done' && closeCheckout()"

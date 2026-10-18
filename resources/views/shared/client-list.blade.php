@@ -4,7 +4,7 @@
     <a href="{{ $indexUrl }}?filtro=todos" @class(['px-3 py-1.5 rounded-full border', 'bg-brand-600 text-white border-brand-600' => request('filtro') === 'todos', 'bg-white border-slate-200' => request('filtro') !== 'todos'])>Todos los clientes</a>
 </div>
 
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden max-w-3xl">
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     @forelse($clients as $client)
         <a href="{{ $showUrl($client) }}" class="px-5 py-4 border-b border-slate-100 last:border-0 flex items-center gap-4 hover:bg-slate-50">
             <div class="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center shrink-0">
@@ -30,5 +30,5 @@
 </div>
 
 @if($clients->hasPages())
-    <div class="mt-4 max-w-3xl">{{ $clients->links() }}</div>
+    <div class="mt-4">{{ $clients->links() }}</div>
 @endif

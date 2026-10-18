@@ -3,7 +3,7 @@
 @section('title', 'Cerrar caja')
 
 @section('content')
-<div class="max-w-4xl mx-auto grid lg:grid-cols-2 gap-5">
+<div class="grid lg:grid-cols-2 gap-5">
     <div>
         <h1 class="text-xl font-bold text-slate-800 mb-1">Cerrar caja</h1>
         <p class="text-slate-500 mb-4">Abierta a las {{ $register->opened_at->format('H:i') }}. Esto es lo que pasó en tu turno:</p>

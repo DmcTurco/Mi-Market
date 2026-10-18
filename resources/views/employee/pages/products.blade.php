@@ -18,11 +18,16 @@
             <div class="flex-1 min-w-0">
                 <p class="font-medium text-slate-800">{{ $product->name }}</p>
                 @if($product->barcode)<p class="text-xs text-slate-400 font-mono">{{ $product->barcode }}</p>@endif
+                @foreach($product->presentations as $presentation)
+                    <span class="inline-block mt-1 mr-1 px-2 py-0.5 rounded bg-brand-50 text-brand-700 text-xs">{{ $presentation->label() }}: <strong>{{ money($presentation->price) }}</strong></span>
+                @endforeach
             </div>
             <span @class(['text-sm px-2 py-1 rounded', 'bg-red-50 text-red-700 font-semibold' => (float) $product->stock <= 0, 'bg-amber-50 text-amber-700' => (float) $product->stock > 0 && $product->isLowStock(), 'text-slate-500' => (float) $product->stock > 0 && !$product->isLowStock()])>
                 {{ (float) $product->stock <= 0 ? 'Sin stock' : 'Quedan ' . qty($product->stock) }}
             </span>
-            <span class="w-24 text-right text-lg font-bold text-brand-700">{{ money($product->sale_price) }}</span>
+            <span class="w-28 text-right text-lg font-bold text-brand-700">
+                {{ money($product->sale_price) }}@if($product->isFractional())<span class="block text-xs font-normal text-slate-400">el {{ mb_strtolower($product->unitLabel()) }}</span>@endif
+            </span>
         </div>
     @empty
         <p class="py-16 text-center text-slate-400">No hay productos que coincidan.</p>

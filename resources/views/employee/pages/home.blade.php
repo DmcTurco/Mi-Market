@@ -3,7 +3,7 @@
 @section('title', 'Inicio')
 
 @section('content')
-<div class="max-w-4xl mx-auto">
+<div>
     <h1 class="text-2xl font-bold text-slate-800">Hola, {{ $employee->name }} 👋</h1>
     <p class="text-slate-500 mt-1 mb-6">{{ $employee->company->name }} · {{ now()->translatedFormat('l d \d\e F') }}</p>
 

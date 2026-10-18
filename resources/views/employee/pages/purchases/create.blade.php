@@ -10,5 +10,5 @@
     'productsUrl'    => null,
     'canPayFromCash' => $hasRegister,
 ])
-<p class="mt-3 text-sm text-slate-500 max-w-4xl">¿No encuentras el producto? Pídele al encargado que lo cree en el sistema.</p>
+<p class="mt-3 text-sm text-slate-500">¿No encuentras el producto? Pídele al encargado que lo cree en el sistema.</p>
 @endsection

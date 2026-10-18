@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ScopedToCompany;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\ProductRequest;
 use App\Models\Product;
+use App\Models\ProductPresentation;
 use App\Models\StockMovement;
 use App\Services\StockService;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $products = $this->company()->products()
-            ->with('category')
+            ->with('category', 'presentations')
             ->search($request->buscar)
             ->when($request->filled('categoria'), fn ($q) => $q->where('category_id', $request->categoria))
             ->when($request->filtro === 'pocos', fn ($q) => $q->lowStock())
@@ -47,6 +48,7 @@ class ProductController extends Controller
     {
         $product = DB::transaction(function () use ($request, $stock) {
             $product = $this->company()->products()->create($request->productData() + ['stock' => 0]);
+            $this->syncPresentations($product, $request->input('presentations', []));
 
             $initial = (float) $request->input('stock', 0);
             if ($initial > 0) {
@@ -65,7 +67,7 @@ class ProductController extends Controller
         $this->ensureOwned($product);
 
         return view('company.pages.products.form', [
-            'product'    => $product,
+            'product'    => $product->load('presentations'),
             'categories' => $this->company()->categories()
                 ->where(fn ($q) => $q->where('active', true)->orWhere('id', $product->category_id))
                 ->orderBy('name')->get(),
@@ -81,6 +83,7 @@ class ProductController extends Controller
 
         DB::transaction(function () use ($request, $product, $stock) {
             $product->update($request->productData());
+            $this->syncPresentations($product, $request->input('presentations', []));
 
             $difference = round((float) $request->input('stock', $product->stock) - (float) $product->fresh()->stock, 3);
             if ($difference != 0) {
@@ -96,10 +99,47 @@ class ProductController extends Controller
     {
         $this->ensureOwned($product);
 
-        $product->delete();
+        // Sus códigos de barras quedan libres para otro producto
+        DB::transaction(function () use ($product) {
+            ProductPresentation::where('product_id', $product->id)->update(['barcode' => null]);
+            $product->update(['barcode' => null]);
+            $product->delete();
+        });
 
         return redirect()->back()
             ->with('success', "Producto «{$product->name}» eliminado.");
+    }
+
+    /**
+     * Deja las presentaciones del producto tal como vinieron del formulario:
+     * actualiza las que ya existían, crea las nuevas y borra las que se quitaron.
+     * Las ventas pasadas no se afectan: guardan su propio nombre, precio y unidades.
+     */
+    private function syncPresentations(Product $product, array $rows): void
+    {
+        $keep = [];
+        foreach ($rows as $row) {
+            $data = [
+                'company_id' => $product->company_id,
+                'name'       => $row['name'],
+                'units'      => $row['units'],
+                'price'      => $row['price'],
+                'barcode'    => $row['barcode'],
+            ];
+
+            $existing = !empty($row['id'])
+                ? ProductPresentation::where('product_id', $product->id)->find($row['id'])
+                : null;
+
+            if ($existing) {
+                $existing->update($data);
+            } else {
+                $existing = $product->presentations()->create($data);
+            }
+            $keep[] = $existing->id;
+        }
+
+        ProductPresentation::where('product_id', $product->id)->whereNotIn('id', $keep)->delete();
     }
 
     /** Historial de movimientos de stock del producto */

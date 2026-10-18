@@ -31,6 +31,16 @@
     display: none !important;
 }
 
+/* Menú lateral plegado (solo ≥ 1024 px). La clase sidebar-collapsed la pone en <html> un script
+   del <head> antes de pintar, así al cambiar de página el menú y el contenido no se mueven. */
+@media (min-width: 1024px) {
+    .sidebar-collapsed #sidebar { width: 4.5rem; }
+    .sidebar-collapsed #app-content { margin-left: 4.5rem; }
+    .sidebar-collapsed #sidebar .nav-label { display: none; }
+    .sidebar-collapsed #sidebar .nav-item,
+    .sidebar-collapsed #sidebar .sidebar-brand { justify-content: center; padding-left: 0; padding-right: 0; }
+}
+
 /* Alto visible real: en tablets 100vh incluye la franja bajo la barra del navegador */
 .app-shell {
     height: 100vh;

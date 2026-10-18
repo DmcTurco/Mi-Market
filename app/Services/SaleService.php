@@ -28,7 +28,7 @@ class SaleService
     ) {}
 
     /**
-     * @param  array{items: array<int, array{product_id: int, quantity: float}>, voucher_type: string,
+     * @param  array{items: array<int, array{product_id: int, presentation_id?: ?int, quantity: float}>, voucher_type: string,
      *               payment_method: string, amount_received?: ?float, client_id?: ?int,
      *               customer_name?: ?string, customer_document?: ?string, customer_address?: ?string,
      *               customer_phone?: ?string}  $data
@@ -49,28 +49,44 @@ class SaleService
         return DB::transaction(function () use ($employee, $register, $data, $companyId, $items, $voucher, $method) {
             // Se bloquean en orden de id para que dos cajas vendiendo lo mismo no se traben
             $products = Product::where('company_id', $companyId)
-                ->whereIn('id', array_keys($items))
+                ->whereIn('id', array_unique(array_column($items, 'product_id')))
+                ->with('presentations')
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
 
             $lines = [];
-            foreach ($items as $productId => $quantity) {
-                $product = $products->get($productId);
+            foreach ($items as $item) {
+                $product = $products->get($item['product_id']);
 
                 if (!$product || !$product->active) {
                     throw new BusinessException('Uno de los productos ya no está disponible. Quítalo de la venta y vuelve a buscarlo.');
                 }
-                if (!$product->isFractional() && floor($quantity) != $quantity) {
-                    throw new BusinessException("«{$product->name}» se vende por {$product->unitLabel()}: la cantidad debe ser entera.");
+
+                $presentation = null;
+                if ($item['presentation_id']) {
+                    $presentation = $product->presentations->firstWhere('id', $item['presentation_id']);
+                    if (!$presentation) {
+                        throw new BusinessException("La presentación de «{$product->name}» cambió. Quítalo de la venta y vuelve a agregarlo.");
+                    }
+                }
+
+                // Por kilo o litro se vende cualquier cantidad; unidades, cajas y paquetes van enteros
+                $wholeOnly = $presentation !== null || !$product->isFractional();
+                if ($wholeOnly && floor($item['quantity']) != $item['quantity']) {
+                    $how = $presentation ? mb_strtolower($presentation->name) : mb_strtolower($product->unitLabel());
+                    throw new BusinessException("«{$product->name}» se vende por {$how}: la cantidad debe ser entera.");
                 }
 
                 $lines[] = [
-                    'product'     => $product,
-                    'quantity'    => $quantity,
-                    'price'       => (float) $product->sale_price,
-                    'affectation' => $product->igv_affectation,
+                    'product'      => $product,
+                    'presentation' => $presentation,
+                    'name'         => $presentation ? "{$product->name} ({$presentation->label()})" : $product->name,
+                    'quantity'     => $item['quantity'],
+                    'units'        => $presentation ? (float) $presentation->units : 1.0,
+                    'price'        => $presentation ? (float) $presentation->price : (float) $product->sale_price,
+                    'affectation'  => $product->igv_affectation,
                 ];
             }
 
@@ -112,9 +128,11 @@ class SaleService
 
                 $sale->items()->create([
                     'product_id'      => $product->id,
-                    'product_name'    => $product->name,
+                    'presentation_id' => $line['presentation']?->id,
+                    'product_name'    => $line['name'],
                     'unit'            => $product->unit,
                     'quantity'        => $line['quantity'],
+                    'units_per_item'  => $line['units'],
                     'unit_price'      => $line['price'],
                     'total'           => $totals['lines'][$i]['total'],
                     'igv_affectation' => $line['affectation'],
@@ -122,7 +140,8 @@ class SaleService
                     'igv'             => $totals['lines'][$i]['igv'],
                 ]);
 
-                $this->stock->move($product->id, -$line['quantity'], StockMovement::SALE, $sale->id, $sale->voucherNumber());
+                // 2 cajas de 12 descuentan 24 del stock
+                $this->stock->move($product->id, -round($line['quantity'] * $line['units'], 3), StockMovement::SALE, $sale->id, $sale->voucherNumber());
             }
 
             return $sale;
@@ -154,7 +173,7 @@ class SaleService
             }
 
             foreach ($sale->items as $item) {
-                $this->stock->move($item->product_id, (float) $item->quantity, StockMovement::SALE_VOID, $sale->id, $sale->voucherNumber());
+                $this->stock->move($item->product_id, round((float) $item->quantity * (float) $item->units_per_item, 3), StockMovement::SALE_VOID, $sale->id, $sale->voucherNumber());
             }
 
             $sale->update([
@@ -169,23 +188,27 @@ class SaleService
     }
 
     /**
-     * Suma las cantidades si el mismo producto viene en varias líneas.
+     * Suma las cantidades si el mismo producto (en la misma presentación) viene en varias líneas.
      *
-     * @return array<int, float> product_id => cantidad
+     * @return array<string, array{product_id: int, presentation_id: ?int, quantity: float}>
      */
     private function mergeItems(array $items): array
     {
         $merged = [];
         foreach ($items as $item) {
-            $id = (int) $item['product_id'];
-            $merged[$id] = round(($merged[$id] ?? 0) + (float) $item['quantity'], 3);
+            $productId      = (int) $item['product_id'];
+            $presentationId = !empty($item['presentation_id']) ? (int) $item['presentation_id'] : null;
+            $key            = $productId . ':' . ($presentationId ?? 0);
+
+            $merged[$key] ??= ['product_id' => $productId, 'presentation_id' => $presentationId, 'quantity' => 0.0];
+            $merged[$key]['quantity'] = round($merged[$key]['quantity'] + (float) $item['quantity'], 3);
         }
 
         if (!$merged) {
             throw new BusinessException('Agrega al menos un producto a la venta.');
         }
 
-        return $merged;
+        return array_values($merged);
     }
 
     /**

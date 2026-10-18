@@ -13,7 +13,7 @@
 </x-page-header>
 
 <form method="POST" action="{{ $editing ? route('admin.companies.update', $company) : route('admin.companies.store') }}"
-      class="bg-white rounded-xl border border-slate-200 shadow-sm max-w-3xl" x-data="{ sending: false }" @submit="sending = true">
+      class="bg-white rounded-xl border border-slate-200 shadow-sm" x-data="{ sending: false }" @submit="sending = true">
     @csrf
     @if($editing) @method('PUT') @endif
 

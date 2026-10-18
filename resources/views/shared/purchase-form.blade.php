@@ -1,7 +1,7 @@
 {{-- Formulario "Llegó mercadería". Variables: $products, $action, $productsUrl (crear producto, o null), $canPayFromCash --}}
 <form method="POST" action="{{ $action }}"
       x-data="purchaseForm(@js(['products' => $products, 'old' => old('items')]))" @submit="sending = true"
-      class="max-w-4xl space-y-4">
+      class="space-y-4">
     @csrf
 
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -29,7 +29,7 @@
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <p class="px-5 py-3 border-b border-slate-100 text-sm font-medium text-slate-700">2. Escribe cuántos llegaron y a cuánto los compraste</p>
 
-        <template x-for="(item, index) in items" :key="item.product_id">
+        <template x-for="(item, index) in items" :key="item.product_id + ':' + item.presentation_id">
             <div class="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
                 <input type="hidden" :name="`items[${index}][product_id]`" :value="item.product_id">
                 <div class="flex-1 min-w-48">
@@ -38,11 +38,23 @@
                 </div>
                 <label class="text-sm text-slate-500">
                     Llegaron
-                    <input type="text" inputmode="decimal" :id="`qty-${item.product_id}`" :name="`items[${index}][quantity]`" x-model="item.quantity"
+                    <input type="text" inputmode="decimal" :id="`qty-${item.product_id}-${item.presentation_id || 0}`" :name="`items[${index}][quantity]`" x-model="item.quantity"
                            class="block w-24 mt-1 px-3 py-2 text-lg font-bold border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
                 </label>
+                {{-- Por cajas: 3 cajas de 12 = 36 unidades --}}
+                <label class="text-sm text-slate-500" x-show="item.presentations.length">
+                    En
+                    <select :name="`items[${index}][presentation_id]`" x-model="item.presentation_id" @change="changePresentation(item)"
+                            class="block mt-1 px-3 py-2.5 border-2 border-slate-300 rounded-lg bg-white">
+                        <option value="" x-text="plural(item.unit)"></option>
+                        <template x-for="p in item.presentations" :key="p.id">
+                            <option :value="p.id" :selected="p.id === item.presentation_id" x-text="p.name.toLowerCase() + ' de ' + p.units"></option>
+                        </template>
+                    </select>
+                    <span class="block text-xs text-brand-700 mt-0.5" x-show="item.presentation_id !== '' && baseUnits(item) > 0" x-text="'= ' + baseUnits(item) + ' ' + plural(item.unit)"></span>
+                </label>
                 <label class="text-sm text-slate-500">
-                    Costo c/u (S/)
+                    <span x-text="item.presentation_id !== '' ? 'Costo por ' + item.presentations.find(p => p.id === item.presentation_id)?.name.toLowerCase() + ' (S/)' : 'Costo c/u (S/)'"></span>
                     <input type="text" inputmode="decimal" :name="`items[${index}][unit_cost]`" x-model="item.unit_cost"
                            class="block w-28 mt-1 px-3 py-2 text-lg border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
                 </label>

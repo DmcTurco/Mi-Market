@@ -17,15 +17,22 @@ trait HandlesPurchases
     {
         return $this->company()->products()
             ->where('active', true)
+            ->with('presentations')
             ->orderBy('name')
-            ->get(['id', 'name', 'barcode', 'unit', 'purchase_price', 'stock'])
+            ->get()
             ->map(fn ($p) => [
-                'id'      => $p->id,
-                'name'    => $p->name,
-                'barcode' => $p->barcode,
-                'unit'    => $p->unitLabel(),
-                'cost'    => (float) $p->purchase_price,
-                'stock'   => (float) $p->stock,
+                'id'            => $p->id,
+                'name'          => $p->name,
+                'barcode'       => $p->barcode,
+                'unit'          => $p->unitLabel(),
+                'cost'          => (float) $p->purchase_price,
+                'stock'         => (float) $p->stock,
+                'presentations' => $p->presentations->map(fn ($pr) => [
+                    'id'      => $pr->id,
+                    'name'    => $pr->name,
+                    'units'   => (float) $pr->units,
+                    'barcode' => $pr->barcode,
+                ])->values()->all(),
             ])
             ->all();
     }
@@ -35,7 +42,8 @@ trait HandlesPurchases
         return $request->validate([
             'supplier'             => 'nullable|string|max:150',
             'items'                => 'required|array|min:1',
-            'items.*.product_id'   => 'required|integer',
+            'items.*.product_id'      => 'required|integer',
+            'items.*.presentation_id' => 'nullable|integer',
             'items.*.quantity'     => 'required|numeric|min:0.001|max:9999999',
             'items.*.unit_cost'    => 'nullable|numeric|min:0|max:999999',
         ], [

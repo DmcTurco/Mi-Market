@@ -9,7 +9,7 @@
     </a>
 </x-page-header>
 
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden max-w-3xl">
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-100">
             <tr class="text-xs font-semibold text-slate-400 uppercase tracking-wider">

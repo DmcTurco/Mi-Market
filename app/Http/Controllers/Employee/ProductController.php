@@ -17,6 +17,7 @@ class ProductController extends Controller
     {
         $products = $this->company()->products()
             ->where('active', true)
+            ->with('presentations')
             ->search($request->buscar)
             ->when($request->filtro === 'pocos', fn ($q) => $q->lowStock())
             ->orderBy('name')

@@ -22,7 +22,7 @@ class PosController extends Controller
         $company = $this->company();
 
         return view('employee.pages.pos', [
-            'products'   => $company->products()->where('active', true)->orderBy('name')->get()->map->toPos()->all(),
+            'products'   => $company->products()->where('active', true)->with('presentations')->orderBy('name')->get()->map->toPos()->all(),
             'categories' => $company->categories()->where('active', true)->orderBy('name')->get(['id', 'name']),
             'vouchers'   => $this->availableVouchers(),
         ]);
@@ -32,8 +32,9 @@ class PosController extends Controller
     {
         $data = $request->validate([
             'items'               => 'required|array|min:1',
-            'items.*.product_id'  => 'required|integer',
-            'items.*.quantity'    => 'required|numeric|min:0.001|max:99999',
+            'items.*.product_id'      => 'required|integer',
+            'items.*.presentation_id' => 'nullable|integer',
+            'items.*.quantity'        => 'required|numeric|min:0.001|max:99999',
             'voucher_type'        => ['required', Rule::in($this->availableVouchers())],
             'payment_method'      => ['required', Rule::in(array_keys(Sale::PAYMENT_METHODS))],
             'amount_received'     => 'nullable|numeric|min:0|max:999999',

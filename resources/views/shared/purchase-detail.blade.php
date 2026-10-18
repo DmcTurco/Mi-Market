@@ -1,5 +1,5 @@
 {{-- Detalle de un ingreso de mercadería. Variable: $purchase --}}
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden max-w-3xl">
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="px-5 py-3 border-b border-slate-100 text-sm text-slate-600 flex flex-wrap gap-x-6 gap-y-1">
         <span><i class="fas fa-calendar"></i> {{ $purchase->created_at->format('d/m/Y H:i') }}</span>
         <span><i class="fas fa-user"></i> {{ $purchase->employee?->name ?? 'La empresa' }}</span>

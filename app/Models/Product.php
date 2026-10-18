@@ -72,6 +72,12 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    /** Otras formas de venderlo (caja, media caja...), de la más chica a la más grande */
+    public function presentations(): HasMany
+    {
+        return $this->hasMany(ProductPresentation::class)->orderBy('units');
+    }
+
     /** Productos con stock en o por debajo del mínimo (y que tienen un mínimo configurado) */
     public function scopeLowStock(Builder $query): void
     {
@@ -88,7 +94,8 @@ class Product extends Model
 
         $query->where(function (Builder $q) use ($term) {
             $q->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($term) . '%'])
-              ->orWhere('barcode', $term);
+              ->orWhere('barcode', $term)
+              ->orWhereHas('presentations', fn (Builder $p) => $p->where('barcode', $term));
         });
     }
 
@@ -113,18 +120,25 @@ class Product extends Model
         return (float) $this->min_stock > 0 && (float) $this->stock <= (float) $this->min_stock;
     }
 
-    /** Datos que usa el punto de venta (JSON) */
+    /** Datos que usa el punto de venta (JSON). Cargar antes la relación presentations. */
     public function toPos(): array
     {
         return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'barcode'    => $this->barcode,
-            'price'      => (float) $this->sale_price,
-            'stock'      => (float) $this->stock,
-            'unit'       => $this->unitLabel(),
-            'fractional' => $this->isFractional(),
-            'category'   => $this->category_id,
+            'id'            => $this->id,
+            'name'          => $this->name,
+            'barcode'       => $this->barcode,
+            'price'         => (float) $this->sale_price,
+            'stock'         => (float) $this->stock,
+            'unit'          => $this->unitLabel(),
+            'fractional'    => $this->isFractional(),
+            'category'      => $this->category_id,
+            'presentations' => $this->presentations->map(fn (ProductPresentation $p) => [
+                'id'      => $p->id,
+                'name'    => $p->name,
+                'units'   => (float) $p->units,
+                'price'   => (float) $p->price,
+                'barcode' => $p->barcode,
+            ])->values()->all(),
         ];
     }
 }
