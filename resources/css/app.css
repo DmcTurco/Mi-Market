@@ -1,3 +1,38 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+/* Color de marca por panel: admin violeta, empresa verde (emerald), empleado celeste (sky).
+   Las vistas usan bg-brand-600, text-brand-700, ring-brand-500... y la clase del <body>
+   (panel-admin / panel-company / panel-employee) decide el color real. */
+@theme inline {
+    --color-brand-50: var(--brand-50);
+    --color-brand-100: var(--brand-100);
+    --color-brand-500: var(--brand-500);
+    --color-brand-600: var(--brand-600);
+    --color-brand-700: var(--brand-700);
+    --color-brand-800: var(--brand-800);
+}
+
+:root,
+.panel-company  { --brand-50: #ecfdf5; --brand-100: #d1fae5; --brand-500: #10b981; --brand-600: #059669; --brand-700: #047857; --brand-800: #065f46; }
+.panel-admin    { --brand-50: #f5f3ff; --brand-100: #ede9fe; --brand-500: #8b5cf6; --brand-600: #7c3aed; --brand-700: #6d28d9; --brand-800: #5b21b6; }
+.panel-employee { --brand-50: #f0f9ff; --brand-100: #e0f2fe; --brand-500: #0ea5e9; --brand-600: #0284c7; --brand-700: #0369a1; --brand-800: #075985; }
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Alpine: oculta los elementos con x-cloak hasta que Alpine arranque (evita parpadeos de modales) */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Alto visible real: en tablets 100vh incluye la franja bajo la barra del navegador */
+.app-shell {
+    height: 100vh;
+    height: 100dvh;
+}

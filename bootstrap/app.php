@@ -1,55 +1,74 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Create The Application
-|--------------------------------------------------------------------------
-|
-| The first thing we will do is create a new Laravel application instance
-| which serves as the "glue" for all the components of Laravel, and is
-| the IoC container for the system binding all of the various parts.
-|
-*/
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
 
-$app = new Illuminate\Foundation\Application(
-    $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
-);
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        // El empleado debe tener su caja abierta para vender, cobrar fiados o registrar gastos
+        $middleware->alias([
+            'cash.open' => \App\Http\Middleware\EnsureCashRegisterIsOpen::class,
+        ]);
 
-/*
-|--------------------------------------------------------------------------
-| Bind Important Interfaces
-|--------------------------------------------------------------------------
-|
-| Next, we need to bind some important interfaces into the container so
-| we will be able to resolve them when needed. The kernels serve the
-| incoming requests to this application from both the web and CLI.
-|
-*/
+        // Usuario ya logueado que entra al login: va al inicio de su panel (/company/home...), no a "/"
+        $middleware->redirectUsersTo(function (\Illuminate\Http\Request $request) {
+            $routeType = $request->routeType();
 
-$app->singleton(
-    Illuminate\Contracts\Http\Kernel::class,
-    App\Http\Kernel::class
-);
+            return $routeType ? route($routeType . '.home') : '/';
+        });
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        // Regla del negocio (stock insuficiente, caja cerrada...): se muestra el mensaje tal cual
+        $exceptions->render(function (\App\Exceptions\BusinessException $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
 
-$app->singleton(
-    Illuminate\Contracts\Console\Kernel::class,
-    App\Console\Kernel::class
-);
+            return redirect()->back()
+                ->withInput($request->except(['_token', 'password', 'password_confirmation']))
+                ->with('error', $e->getMessage());
+        });
 
-$app->singleton(
-    Illuminate\Contracts\Debug\ExceptionHandler::class,
-    App\Exceptions\Handler::class
-);
+        // Token CSRF vencido (419 "Page Expired"): pasa con una página abierta mucho tiempo o
+        // cuando la sesión se cerró en otra pestaña. En vez de la página de error, se resuelve solo.
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
+            }
 
-/*
-|--------------------------------------------------------------------------
-| Return The Application
-|--------------------------------------------------------------------------
-|
-| This script returns the application instance. The instance is given to
-| the calling script so we can separate the building of the instances
-| from the actual running of the application and sending responses.
-|
-*/
+            $message = 'La página estuvo abierta mucho tiempo y venció. Revisa los datos y vuelve a intentarlo.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 419);
+            }
 
-return $app;
+            $panel = $request->routeType();
+            $login = $panel ? url($panel . '/login') : url('/');
+
+            // Cerrar sesión: igual se quería salir, se va directo al login
+            if (str_ends_with($request->path(), 'logout')) {
+                if ($panel) {
+                    \Illuminate\Support\Facades\Auth::guard($panel)->logout();
+                }
+
+                return redirect($login);
+            }
+
+            // Ingresar con la página de login vieja: vuelve al login con el correo ya escrito
+            if (str_ends_with($request->path(), 'login')) {
+                return redirect($login)
+                    ->withInput($request->only('email'))
+                    ->withErrors(['email' => 'La página de ingreso estuvo abierta mucho tiempo. Vuelve a escribir tu contraseña.']);
+            }
+
+            return redirect()->back()
+                ->withInput($request->except(['_token', 'password', 'password_confirmation', 'current_password']))
+                ->with('error', $message);
+        });
+    })->create();

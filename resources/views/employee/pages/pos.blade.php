@@ -1,0 +1,323 @@
+@extends('employee.layouts.base')
+
+@section('title', 'Vender')
+@section('main-class', 'overflow-hidden')
+
+@section('content')
+<div x-data="pos(@js([
+        'products'   => $products,
+        'categories' => $categories,
+        'vouchers'   => $vouchers,
+        'methods'    => \App\Models\Sale::PAYMENT_METHODS,
+        'urls'       => [
+            'store'   => route('employee.sales.store'),
+            'clients' => route('employee.clients.search'),
+        ],
+     ]))"
+     @keydown.window.f2.prevent="focusSearch()"
+     class="h-full flex flex-col lg:flex-row">
+
+    {{-- ── Izquierda: buscar y elegir productos ─────────────────────────── --}}
+    <section class="flex-1 min-h-0 flex flex-col p-3 md:p-4 gap-3">
+        <form @submit.prevent="submitSearch()" class="relative shrink-0">
+            <i class="fas fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl pointer-events-none"></i>
+            <input type="text" x-ref="search" x-model="search" autocomplete="off"
+                   placeholder="Escribe el nombre o pasa el código de barras..."
+                   class="w-full pl-12 pr-12 py-4 text-lg bg-white border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500 shadow-sm">
+            <button type="button" x-show="search" x-cloak @click="search = ''; focusSearch()" title="Borrar"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </form>
+
+        {{-- Aviso corto (no encontrado, sin stock...) --}}
+        <div x-show="notice" x-cloak x-transition
+             class="shrink-0 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
+            <i class="fas fa-circle-info"></i><span x-text="notice"></span>
+        </div>
+
+        {{-- Categorías --}}
+        <div x-show="!search && categories.length" class="shrink-0 flex gap-2 overflow-x-auto pb-1">
+            <button type="button" @click="category = null"
+                    :class="category === null ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200'"
+                    class="px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap">Todos</button>
+            <template x-for="cat in categories" :key="cat.id">
+                <button type="button" @click="category = cat.id" x-text="cat.name"
+                        :class="category === cat.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200'"
+                        class="px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap"></button>
+            </template>
+        </div>
+
+        {{-- Productos --}}
+        <div class="flex-1 min-h-0 overflow-y-auto">
+            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                <template x-for="product in results" :key="product.id">
+                    <button type="button" @click="add(product)"
+                            :class="product.stock <= 0 ? 'opacity-50' : 'hover:border-brand-500 hover:shadow-md'"
+                            class="text-left bg-white rounded-xl border-2 border-slate-200 p-3 transition flex flex-col min-h-28">
+                        <span class="text-sm font-semibold text-slate-800 leading-snug line-clamp-2" x-text="product.name"></span>
+                        <span class="mt-auto pt-2 text-xl font-bold text-brand-700" x-text="money(product.price)"></span>
+                        <span class="text-xs" :class="product.stock <= 0 ? 'text-red-500 font-semibold' : 'text-slate-400'"
+                              x-text="product.stock <= 0 ? 'Sin stock' : 'Quedan ' + qtyLabel(product.stock) + (product.fractional ? ' ' + product.unit.toLowerCase() : '')"></span>
+                    </button>
+                </template>
+            </div>
+
+            <div x-show="!results.length" class="text-center py-16 text-slate-400">
+                <i class="fas fa-box-open text-4xl mb-3"></i>
+                <p x-show="search">No hay productos con ese nombre.</p>
+                <p x-show="!search">Todavía no hay productos. Pídele al encargado que los registre.</p>
+            </div>
+        </div>
+    </section>
+
+    {{-- ── Derecha: la venta actual ────────────────────────────────────── --}}
+    <aside class="lg:w-[420px] shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col max-h-[55%] lg:max-h-none">
+        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between shrink-0">
+            <h2 class="font-bold text-slate-800">Venta actual</h2>
+            <button type="button" x-show="cart.length" x-cloak
+                    @click="if (confirm('¿Quitar todos los productos de esta venta?')) clearCart()"
+                    class="text-sm text-slate-500 hover:text-red-600"><i class="fas fa-trash-can"></i> Vaciar</button>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
+            <template x-for="line in cart" :key="line.id">
+                <div class="px-4 py-3">
+                    <div class="flex items-start gap-2">
+                        <p class="flex-1 text-sm font-semibold text-slate-800 leading-snug" x-text="line.name"></p>
+                        <button type="button" @click="remove(line)" title="Quitar" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600">
+                            <i class="fas fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-3 mt-2">
+                        {{-- Unidades: botones − y +; kilos/litros: se escribe el peso --}}
+                        <template x-if="!line.fractional">
+                            <div class="flex items-center">
+                                <button type="button" @click="decrease(line)" class="w-10 h-10 rounded-l-lg bg-slate-100 hover:bg-slate-200 text-lg font-bold">−</button>
+                                <span class="w-12 h-10 flex items-center justify-center bg-slate-50 font-bold" x-text="line.qty"></span>
+                                <button type="button" @click="increase(line)" class="w-10 h-10 rounded-r-lg bg-slate-100 hover:bg-slate-200 text-lg font-bold">+</button>
+                            </div>
+                        </template>
+                        <template x-if="line.fractional">
+                            <label class="flex items-center gap-2">
+                                <input type="text" inputmode="decimal" :value="line.qty" @change="setQty(line, $event.target.value)" @focus="$event.target.select()"
+                                       class="w-20 h-10 px-2 text-center font-bold border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                                <span class="text-sm text-slate-500" x-text="line.unit.toLowerCase()"></span>
+                            </label>
+                        </template>
+                        <span class="text-xs text-slate-400" x-text="'× ' + money(line.price)"></span>
+                        <span class="ml-auto font-bold text-slate-800" x-text="money(lineTotal(line))"></span>
+                    </div>
+                </div>
+            </template>
+
+            <div x-show="!cart.length" class="text-center py-10 px-6 text-slate-400">
+                <i class="fas fa-cart-shopping text-4xl mb-3"></i>
+                <p>Toca un producto o pasa su código de barras para agregarlo.</p>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-slate-200 shrink-0 bg-slate-50">
+            <div class="flex items-end justify-between mb-3">
+                <span class="text-slate-500">Total <span class="text-xs" x-show="cart.length" x-text="'(' + itemsCount + ' productos)'"></span></span>
+                <span class="text-4xl font-bold text-slate-800" x-text="money(total)"></span>
+            </div>
+            <button type="button" @click="openCheckout()" :disabled="!cart.length"
+                    class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xl font-bold rounded-xl shadow flex items-center justify-center gap-3">
+                <i class="fas fa-money-bill-wave"></i> Cobrar
+            </button>
+        </div>
+    </aside>
+
+    {{-- ── Cobro: paso a paso ─────────────────────────────────────────── --}}
+    <div x-show="checkout" x-cloak x-transition.opacity @keydown.escape.window="step !== 'done' && closeCheckout()"
+         class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-3">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-full overflow-y-auto">
+
+            {{-- Paso 1: ¿cómo paga? --}}
+            <div x-show="step === 'method'" class="p-6">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-xl font-bold text-slate-800">¿Cómo paga el cliente?</h3>
+                    <button type="button" @click="closeCheckout()" class="w-9 h-9 rounded-full text-slate-400 hover:bg-slate-100"><i class="fas fa-xmark"></i></button>
+                </div>
+                <p class="text-slate-500 mb-5">Total a cobrar: <strong class="text-slate-800 text-lg" x-text="money(total)"></strong></p>
+
+                <div class="grid grid-cols-2 gap-3">
+                    @foreach ([
+                        'efectivo' => ['fa-money-bill-wave', 'Efectivo'],
+                        'yape'     => ['fa-mobile-screen', 'Yape'],
+                        'plin'     => ['fa-mobile-screen-button', 'Plin'],
+                        'tarjeta'  => ['fa-credit-card', 'Tarjeta'],
+                        'fiado'    => ['fa-handshake', 'Fiado'],
+                    ] as $key => [$icon, $label])
+                        <button type="button" @click="chooseMethod('{{ $key }}')"
+                                class="{{ $key === 'efectivo' ? 'col-span-2 bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-600' : 'bg-white hover:border-brand-500 hover:bg-brand-50 border-slate-200' }} border-2 rounded-xl py-5 flex flex-col items-center gap-2 font-bold text-lg">
+                            <i class="fas {{ $icon }} text-2xl"></i>{{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Paso 2: detalles según la forma de pago + comprobante --}}
+            <div x-show="step === 'details'" class="p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <button type="button" @click="step = 'method'; error = ''" class="w-9 h-9 rounded-full text-slate-500 hover:bg-slate-100" title="Volver">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h3 class="text-xl font-bold text-slate-800 flex-1">
+                        Pago con <span x-text="methods[method]"></span>
+                    </h3>
+                    <span class="text-xl font-bold text-slate-800" x-text="money(total)"></span>
+                </div>
+
+                {{-- Efectivo: con cuánto paga y el vuelto --}}
+                <template x-if="method === 'efectivo'">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">¿Con cuánto paga?</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">S/</span>
+                            <input type="text" inputmode="decimal" x-ref="received" x-model="received" @keydown.enter.prevent="confirm()"
+                                   :placeholder="total.toFixed(2)"
+                                   class="w-full pl-14 pr-4 py-4 text-3xl font-bold border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button type="button" @click="received = total.toFixed(2)" class="px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold">Exacto</button>
+                            <template x-for="bill in bills" :key="bill">
+                                <button type="button" @click="received = String(bill)" class="px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold" x-text="'S/ ' + bill"></button>
+                            </template>
+                        </div>
+                        <div class="mt-4 p-4 rounded-xl text-center"
+                             :class="missing > 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-800'">
+                            <template x-if="missing > 0">
+                                <p class="text-lg">Faltan <strong class="text-2xl" x-text="money(missing)"></strong></p>
+                            </template>
+                            <template x-if="missing === 0">
+                                <p class="text-lg">Vuelto: <strong class="text-3xl" x-text="money(change ?? 0)"></strong></p>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                {{-- Yape, Plin, tarjeta: solo confirmar que llegó --}}
+                <template x-if="['yape', 'plin', 'tarjeta'].includes(method)">
+                    <p class="p-4 rounded-xl bg-sky-50 text-sky-800">
+                        <i class="fas fa-circle-info"></i>
+                        Confirma que el pago de <strong x-text="money(total)"></strong> llegó antes de continuar.
+                    </p>
+                </template>
+
+                {{-- Fiado: elegir o crear al cliente --}}
+                <template x-if="method === 'fiado'">
+                    <div>
+                        <template x-if="customer.id || newClient">
+                            <div class="p-4 rounded-xl border-2 border-brand-500 bg-brand-50">
+                                <template x-if="customer.id">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-user text-brand-700 text-xl"></i>
+                                        <div class="flex-1">
+                                            <p class="font-bold text-slate-800" x-text="customer.name"></p>
+                                            <p class="text-sm text-slate-500" x-show="customer.debt > 0">Ya debe <strong x-text="money(customer.debt)"></strong></p>
+                                        </div>
+                                        <button type="button" @click="resetCustomer()" class="text-sm text-slate-500 hover:text-slate-800">Cambiar</button>
+                                    </div>
+                                </template>
+                                <template x-if="!customer.id">
+                                    <div class="space-y-3">
+                                        <p class="font-semibold text-slate-800">Cliente nuevo</p>
+                                        <input type="text" x-model="customer.name" placeholder="Nombre (ej. Doña Rosa del 2do piso)"
+                                               class="w-full px-3 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                                        <input type="text" inputmode="tel" x-model="customer.phone" placeholder="Celular (opcional)"
+                                               class="w-full px-3 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                                        <button type="button" @click="resetCustomer()" class="text-sm text-slate-500 hover:text-slate-800">Buscar un cliente que ya existe</button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="!customer.id && !newClient">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">¿A quién le fías?</label>
+                                <input type="text" x-ref="clientQuery" x-model="clientQuery" @input.debounce.300ms="searchClients()"
+                                       placeholder="Escribe su nombre, DNI o celular"
+                                       class="w-full px-4 py-3 text-lg border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500">
+                                <div class="mt-2 divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden" x-show="clientResults.length">
+                                    <template x-for="client in clientResults" :key="client.id">
+                                        <button type="button" @click="pickClient(client)" class="w-full px-4 py-3 text-left hover:bg-brand-50 flex items-center gap-3">
+                                            <span class="flex-1 font-medium" x-text="client.name"></span>
+                                            <span class="text-sm text-amber-700" x-show="client.debt > 0" x-text="'Debe ' + money(client.debt)"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                                <button type="button" @click="newClient = true; customer.name = clientQuery"
+                                        class="mt-3 w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-600 hover:border-brand-500 hover:text-brand-700 font-medium">
+                                    <i class="fas fa-user-plus"></i> Es un cliente nuevo
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                {{-- Comprobante (solo si la tienda emite boleta/factura) --}}
+                <template x-if="vouchers.length > 1">
+                    <div class="mt-5 pt-5 border-t border-slate-200">
+                        <p class="text-sm font-medium text-slate-700 mb-2">¿Qué comprobante quiere?</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <template x-for="type in vouchers" :key="type">
+                                <button type="button" @click="voucher = type"
+                                        :class="voucher === type ? 'bg-brand-600 text-white border-brand-600' : 'bg-white border-slate-200 hover:border-brand-500'"
+                                        class="py-3 rounded-lg border-2 font-semibold capitalize" x-text="type"></button>
+                            </template>
+                        </div>
+                        <div x-show="voucher !== 'ticket'" class="mt-3 space-y-2">
+                            <input type="text" inputmode="numeric" x-model="customer.document"
+                                   :placeholder="voucher === 'factura' ? 'RUC (11 números) — obligatorio' : 'DNI (opcional)'"
+                                   class="w-full px-3 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                            <input type="text" x-model="customer.name"
+                                   :placeholder="voucher === 'factura' ? 'Razón social — obligatorio' : 'Nombre (opcional)'"
+                                   class="w-full px-3 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                            <input type="text" x-show="voucher === 'factura'" x-model="customer.address" placeholder="Dirección (opcional)"
+                                   class="w-full px-3 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-brand-500">
+                        </div>
+                    </div>
+                </template>
+
+                <div x-show="error" x-cloak class="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex gap-2">
+                    <i class="fas fa-circle-exclamation mt-0.5"></i><span x-text="error"></span>
+                </div>
+
+                <button type="button" @click="confirm()" :disabled="!canConfirm || sending"
+                        class="mt-5 w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xl font-bold rounded-xl flex items-center justify-center gap-3">
+                    <i class="fas" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+                    <span x-text="sending ? 'Guardando...' : (method === 'fiado' ? 'Anotar fiado de ' : 'Cobrar ') + money(total)"></span>
+                </button>
+            </div>
+
+            {{-- Paso 3: listo --}}
+            <div x-show="step === 'done'" class="p-8 text-center">
+                <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check text-emerald-600 text-4xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-slate-800">¡Venta registrada!</h3>
+                <p class="text-slate-500 mt-1" x-text="result?.number"></p>
+
+                <template x-if="result?.change > 0">
+                    <div class="mt-5 p-4 rounded-xl bg-emerald-50">
+                        <p class="text-emerald-800">Dale de vuelto</p>
+                        <p class="text-5xl font-bold text-emerald-700" x-text="money(result.change)"></p>
+                    </div>
+                </template>
+
+                <div class="grid grid-cols-2 gap-3 mt-6">
+                    <button type="button" @click="printTicket()" class="py-4 rounded-xl border-2 border-slate-200 hover:border-brand-500 font-semibold">
+                        <i class="fas fa-print"></i> Imprimir ticket
+                    </button>
+                    <button type="button" @click="newSale()" x-init="$watch('step', s => s === 'done' && $nextTick(() => $el.focus()))"
+                            class="py-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold">
+                        <i class="fas fa-plus"></i> Nueva venta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
