@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="panel-{{ $panel }} bg-slate-50 text-slate-800 antialiased">
+<body data-touch-input class="panel-{{ $panel }} bg-slate-50 text-slate-800 antialiased">
 <div class="min-h-screen flex">
 
     <div class="flex-1 flex items-center justify-center p-8">

@@ -33,6 +33,9 @@ class Sale extends Model
     const CASH   = 'efectivo';
     const CREDIT = 'fiado';
 
+    /** Se cobran redondeados a S/ 0.10: efectivo y fiado (que se paga después en efectivo) */
+    const ROUNDED_METHODS = [self::CASH, self::CREDIT];
+
     const PAYMENT_METHODS = [
         'efectivo' => 'Efectivo',
         'yape'     => 'Yape',

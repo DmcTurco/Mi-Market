@@ -379,9 +379,14 @@ export default (config) => ({
         return this.settings.rounding === 'business' ? -round2((10 - rest) / 100) : round2(rest / 100);
     },
 
-    /** Lo que se cobra: con efectivo, redondeado */
+    /** Lo que se cobraría en efectivo (redondeado a S/ 0.10), para mostrarlo antes de elegir cómo paga */
+    get cashTotal() {
+        return round2(this.total - this.roundingFor(this.total));
+    },
+
+    /** Lo que se cobra: efectivo y fiado (se paga después en efectivo) van redondeados */
     get charged() {
-        return this.method === 'efectivo' ? round2(this.total - this.roundingFor(this.total)) : this.total;
+        return ['efectivo', 'fiado'].includes(this.method) ? this.cashTotal : this.total;
     },
 
     get itemsCount() {

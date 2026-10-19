@@ -105,8 +105,9 @@ class SaleService
             $totals = $this->tax->calculate($lines);
             $total  = $totals['total'];
 
-            // Efectivo: se cobra redondeado a S/ 0.10; el comprobante mantiene el total exacto
-            $rounding = $method === Sale::CASH ? $company->cashRounding($total) : 0.0;
+            // Efectivo y fiado (que se paga después en efectivo): redondeado a S/ 0.10.
+            // El comprobante mantiene el total exacto.
+            $rounding = in_array($method, Sale::ROUNDED_METHODS, true) ? $company->cashRounding($total) : 0.0;
 
             $customer = $this->customer($companyId, $data, $voucher, $method, $total);
             [$received, $change] = $this->cash($method, $data['amount_received'] ?? null, round($total - $rounding, 2));
@@ -136,7 +137,7 @@ class SaleService
                 'igv'                    => $totals['igv'],
                 'total'                  => $total,
                 'rounding_amount'        => $rounding,
-                'credit_balance'         => $method === Sale::CREDIT ? $total : 0,
+                'credit_balance'         => $method === Sale::CREDIT ? round($total - $rounding, 2) : 0,  // debe lo redondeado
                 'status'                 => Sale::ACTIVE,
                 'sunat_status'           => $voucher === Sale::TICKET ? Sale::SUNAT_NOT_APPLICABLE : Sale::SUNAT_PENDING,
             ]);
@@ -198,7 +199,8 @@ class SaleService
             if ($sale->sunat_status === Sale::SUNAT_ACCEPTED) {
                 throw new BusinessException('Esta ' . mb_strtolower($sale->voucherLabel()) . ' ya fue aceptada por SUNAT: se anula con una nota de crédito.');
             }
-            if ($sale->payment_method === Sale::CREDIT && (float) $sale->credit_balance < (float) $sale->total) {
+            // El fiado se debe redondeado: si ya no debe todo lo cobrado, es que abonó algo
+            if ($sale->payment_method === Sale::CREDIT && (float) $sale->credit_balance < $sale->charged()) {
                 throw new BusinessException('El cliente ya abonó parte de este fiado. No se puede anular.');
             }
 

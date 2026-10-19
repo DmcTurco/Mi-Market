@@ -139,13 +139,33 @@ class DiscountRoundingTest extends TestCase
             ->assertOk()->assertJson(['change' => 0.0]);
     }
 
-    public function test_yape_and_credit_are_not_rounded(): void
+    public function test_yape_is_exact_but_credit_is_rounded(): void
     {
         $this->sell(['items' => [['product_id' => $this->potato->id, 'quantity' => 1.22]]])->assertOk()->assertJson(['charged' => 4.27]);
-        $this->sell(['items' => [['product_id' => $this->potato->id, 'quantity' => 1.22]], 'payment_method' => 'fiado', 'customer_name' => 'Rosa'])->assertOk();
+        $this->assertEquals(0, (float) Sale::first()->rounding_amount);
 
-        $this->assertEquals(4.27, (float) Sale::where('payment_method', 'fiado')->first()->credit_balance);
-        $this->assertSame(0, Sale::where('rounding_amount', '!=', 0)->count());
+        // El fiado se paga después en efectivo: se debe lo redondeado
+        $this->sell(['items' => [['product_id' => $this->potato->id, 'quantity' => 1.22]], 'payment_method' => 'fiado', 'customer_name' => 'Rosa'])
+            ->assertOk()->assertJson(['total' => 4.27, 'charged' => 4.2]);
+
+        $credit = Sale::where('payment_method', 'fiado')->first();
+        $this->assertEquals(4.2, (float) $credit->credit_balance);
+        $this->assertEquals(4.2, $credit->client->debt());
+    }
+
+    public function test_rounded_credit_can_still_be_voided_and_paid(): void
+    {
+        $id = $this->sell(['items' => [['product_id' => $this->potato->id, 'quantity' => 1.22]], 'payment_method' => 'fiado', 'customer_name' => 'Rosa'])->json('id');
+
+        // Debe 4.20 (no 4.27): no cuenta como "ya abonó parte", así que se puede anular
+        $this->post("/employee/sales/{$id}/void", ['reason' => 'Prueba'])->assertSessionMissing('error');
+        $this->assertTrue(Sale::find($id)->isVoided());
+
+        // Y una deuda redondeada se paga completa con el monto redondeado
+        $id2      = $this->sell(['items' => [['product_id' => $this->potato->id, 'quantity' => 1.22]], 'payment_method' => 'fiado', 'customer_name' => 'Rosa'])->json('id');
+        $clientId = Sale::find($id2)->client_id;
+        $this->post("/employee/clients/{$clientId}/pay", ['amount' => 4.20, 'payment_method' => 'efectivo'])->assertSessionMissing('error');
+        $this->assertEquals(0, (float) Sale::find($id2)->credit_balance);
     }
 
     public function test_rounding_can_be_turned_off(): void

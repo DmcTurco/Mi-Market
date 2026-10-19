@@ -2,6 +2,7 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 import pos from './pos';
 import purchaseForm from './purchase-form';
+import setupTouchInput from './touch-input';
 
 Alpine.data('pos', pos);
 Alpine.data('purchaseForm', purchaseForm);
@@ -87,7 +88,9 @@ Alpine.store('confirm', {
  */
 document.addEventListener('input', (event) => {
     const input = event.target;
-    if (input instanceof HTMLInputElement && input.inputMode === 'decimal' && input.value.includes(',')) {
+    // En táctil el inputmode pasa a "none" (ver touch-input.js); el modo real queda en data-numpad.
+    const decimal = input.inputMode === 'decimal' || input.dataset?.numpad === 'decimal';
+    if (input instanceof HTMLInputElement && decimal && input.value.includes(',')) {
         input.value = input.value.replace(/,/g, '.');
         input.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -95,3 +98,4 @@ document.addEventListener('input', (event) => {
 
 window.Alpine = Alpine;
 Alpine.start();
+setupTouchInput();

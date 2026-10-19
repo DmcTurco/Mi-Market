@@ -25,9 +25,9 @@
             <i class="fas fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl pointer-events-none"></i>
             <input type="text" x-ref="search" x-model="search" autocomplete="off"
                    placeholder="Escribe el nombre o pasa el código de barras..."
-                   class="w-full pl-12 pr-12 py-4 text-lg bg-white border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500 shadow-sm">
+                   class="w-full pl-12 pr-12 [@media(pointer:coarse)]:pr-24 py-4 text-lg bg-white border-2 border-slate-300 rounded-xl focus:outline-none focus:border-brand-500 shadow-sm">
             <button type="button" x-show="search" x-cloak @click="search = ''; focusSearch()" title="Borrar"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100">
+                    class="absolute right-3 [@media(pointer:coarse)]:right-16 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100">
                 <i class="fas fa-xmark"></i>
             </button>
         </form>
@@ -153,8 +153,12 @@
             </p>
             <div class="flex items-end justify-between mb-3">
                 <span class="text-slate-500">Total <span class="text-xs" x-show="cart.length" x-text="'(' + itemsCount + ' productos)'"></span></span>
-                <span class="text-4xl font-bold text-slate-800" x-text="money(total)"></span>
+                {{-- En grande lo que se pide en efectivo (redondeado a S/ 0.10); en pequeño el exacto --}}
+                <span class="text-4xl font-bold text-slate-800" x-text="money(cashTotal)"></span>
             </div>
+            <p x-show="cart.length && cashTotal !== total" x-cloak class="-mt-2 mb-3 text-right text-xs text-slate-400">
+                Exacto <span x-text="money(total)"></span> · para Yape, Plin o tarjeta
+            </p>
             <button type="button" @click="openCheckout()" :disabled="!cart.length"
                     class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xl font-bold rounded-xl shadow flex items-center justify-center gap-3">
                 <i class="fas fa-money-bill-wave"></i> Cobrar
@@ -310,7 +314,10 @@
                     <h3 class="text-xl font-bold text-slate-800">¿Cómo paga el cliente?</h3>
                     <button type="button" @click="closeCheckout()" class="w-9 h-9 rounded-full text-slate-400 hover:bg-slate-100"><i class="fas fa-xmark"></i></button>
                 </div>
-                <p class="text-slate-500 mb-5">Total a cobrar: <strong class="text-slate-800 text-lg" x-text="money(total)"></strong></p>
+                <div class="mb-5">
+                    <p class="text-slate-500">Total a cobrar: <strong class="text-slate-800 text-2xl" x-text="money(cashTotal)"></strong></p>
+                    <p x-show="cashTotal !== total" class="text-xs text-slate-400">Exacto <span x-text="money(total)"></span> · con Yape, Plin o tarjeta se cobra el exacto</p>
+                </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     @foreach ([
@@ -323,6 +330,11 @@
                         <button type="button" @click="chooseMethod('{{ $key }}')"
                                 class="{{ $key === 'efectivo' ? 'col-span-2 bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-600' : 'bg-white hover:border-brand-500 hover:bg-brand-50 border-slate-200' }} border-2 rounded-xl py-5 flex flex-col items-center gap-2 font-bold text-lg">
                             <i class="fas {{ $icon }} text-2xl"></i>{{ $label }}
+                            @if(in_array($key, \App\Models\Sale::ROUNDED_METHODS))
+                                <span class="text-2xl" x-text="money(cashTotal)"></span>
+                            @else
+                                <span class="text-sm font-medium text-slate-500" x-text="money(total)"></span>
+                            @endif
                         </button>
                     @endforeach
                 </div>
@@ -475,6 +487,8 @@
                 </div>
                 <h3 class="text-2xl font-bold text-slate-800">¡Venta registrada!</h3>
                 <p class="text-slate-500 mt-1" x-text="result?.number"></p>
+                <p class="text-3xl font-bold text-slate-800 mt-3" x-text="money(result?.charged)"></p>
+                <p x-show="result && result.charged !== result.total" class="text-xs text-slate-400" x-text="'Exacto ' + money(result?.total) + ' (redondeado a 10 céntimos)'"></p>
 
                 <template x-if="result?.change > 0">
                     <div class="mt-5 p-4 rounded-xl bg-emerald-50">

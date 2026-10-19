@@ -28,7 +28,7 @@
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="panel-{{ $panel }} bg-slate-50 text-slate-800 antialiased app-shell overflow-hidden" x-data="panelLayout">
+<body data-touch-input class="panel-{{ $panel }} bg-slate-50 text-slate-800 antialiased app-shell overflow-hidden" x-data="panelLayout">
 
     {{-- Fondo oscuro del menú en móvil --}}
     <div x-show="sidebarOpen" x-cloak x-transition.opacity @click="sidebarOpen = false"

@@ -14,8 +14,8 @@
                         </div>
                         <div class="text-right shrink-0">
                             <p class="font-bold text-amber-700">{{ money($sale->credit_balance) }}</p>
-                            @if((float) $sale->credit_balance < (float) $sale->total)
-                                <p class="text-xs text-slate-400">de {{ money($sale->total) }}</p>
+                            @if((float) $sale->credit_balance < $sale->charged())
+                                <p class="text-xs text-slate-400">de {{ money($sale->charged()) }}</p>
                             @endif
                         </div>
                     </div>

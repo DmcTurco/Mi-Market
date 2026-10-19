@@ -73,7 +73,7 @@
         <tr class="b big"><td>TOTAL</td><td class="r">{{ money($sale->total) }}</td></tr>
         @if((float) $sale->rounding_amount != 0)
             <tr><td>Redondeo</td><td class="r">{{ (float) $sale->rounding_amount > 0 ? '-' : '+' }}{{ number_format(abs((float) $sale->rounding_amount), 2) }}</td></tr>
-            <tr class="b"><td>COBRADO</td><td class="r">{{ money($sale->charged()) }}</td></tr>
+            <tr class="b"><td>{{ $sale->payment_method === 'fiado' ? 'A PAGAR (FIADO)' : 'COBRADO' }}</td><td class="r">{{ money($sale->charged()) }}</td></tr>
         @endif
         <tr><td>Pago</td><td class="r">{{ $sale->paymentLabel() }}</td></tr>
         @if($sale->amount_received !== null)
